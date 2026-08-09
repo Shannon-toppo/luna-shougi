@@ -20,6 +20,10 @@ add_library(luna_engine
   src/core/perft.cpp
   src/core/position.cpp
   src/core/zobrist.cpp
+  src/search/eval.cpp
+  src/search/search.cpp
+  src/search/timeman.cpp
+  src/search/tt.cpp
   src/engine/usi_engine.cpp
 )
 target_include_directories(luna_engine PUBLIC src)

@@ -261,3 +261,47 @@ TEST_CASE("pseudo-legal generation is a superset of legal generation", "[movegen
     for (const Move m : legal) REQUIRE(pseudo.Contains(m));
   }
 }
+
+TEST_CASE("capture generation keeps only captures and promotions", "[movegen][captures]") {
+  const std::vector<std::string> sfens = {
+      luna::kStartSfen,
+      "4k4/9/9/4r4/4P4/9/9/9/4K4 b - 1",
+      "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
+  };
+  for (const std::string& sfen : sfens) {
+    Position pos = FromSfen(sfen);
+    if (pos.InCheck()) continue;
+
+    MoveList captures;
+    luna::movegen::GenerateLegalCaptures(pos, captures);
+    const MoveList legal = luna::movegen::GenerateLegal(pos);
+
+    INFO("sfen: " << sfen);
+    for (const Move m : captures) {
+      REQUIRE(legal.Contains(m));
+      REQUIRE_FALSE(m.IsDrop());
+      REQUIRE((m.IsPromotion() || pos.PieceOn(m.To()) != luna::kNoPiece));
+    }
+
+    // Nothing that changes material may be left out.
+    for (const Move m : legal) {
+      if (m.IsDrop()) continue;
+      if (!m.IsPromotion() && pos.PieceOn(m.To()) == luna::kNoPiece) continue;
+      REQUIRE(captures.Contains(m));
+    }
+  }
+}
+
+TEST_CASE("capture generation leaves the position untouched", "[movegen][captures]") {
+  Position pos = FromSfen("4k4/9/9/4r4/4P4/9/9/9/4K4 b - 1");
+  const std::string before = pos.ToSfen();
+  const uint64_t key = pos.Key();
+
+  MoveList captures;
+  luna::movegen::GenerateLegalCaptures(pos, captures);
+
+  REQUIRE(captures.Size() == 1);
+  REQUIRE(luna::ToUsi(captures[0]) == "5e5d");
+  REQUIRE(pos.ToSfen() == before);
+  REQUIRE(pos.Key() == key);
+}
