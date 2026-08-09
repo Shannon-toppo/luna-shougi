@@ -7,6 +7,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(luna_tests
+  test_arbiter.cpp
+  test_elo.cpp
   test_eval.cpp
   test_movegen.cpp
   test_perft.cpp
@@ -16,7 +18,7 @@ add_executable(luna_tests
   test_tt.cpp
   test_usi_engine.cpp
 )
-target_link_libraries(luna_tests PRIVATE luna_engine Catch2::Catch2WithMain)
+target_link_libraries(luna_tests PRIVATE luna_engine luna_match Catch2::Catch2WithMain)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)

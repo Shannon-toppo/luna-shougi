@@ -21,6 +21,7 @@ add_library(luna_engine
   src/core/position.cpp
   src/core/zobrist.cpp
   src/search/eval.cpp
+  src/search/pst.cpp
   src/search/search.cpp
   src/search/timeman.cpp
   src/search/tt.cpp
@@ -31,6 +32,23 @@ target_compile_features(luna_engine PUBLIC cxx_std_20)
 
 add_executable(luna-shougi src/main.cpp)
 target_link_libraries(luna-shougi PRIVATE luna_engine)
+
+# The self-play measurement tool. It reuses luna_engine as the arbiter so that
+# the rules it judges games by are the same code the engine plays by.
+find_package(Threads REQUIRED)
+
+add_library(luna_match
+  src/match/arbiter.cpp
+  src/match/elo.cpp
+  src/match/game.cpp
+  src/match/match.cpp
+  src/match/process.cpp
+  src/match/usi_client.cpp
+)
+target_link_libraries(luna_match PUBLIC luna_engine Threads::Threads)
+
+add_executable(luna-match src/match/main.cpp)
+target_link_libraries(luna-match PRIVATE luna_match)
 
 if(LUNA_BUILD_TESTS)
   enable_testing()
