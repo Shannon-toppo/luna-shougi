@@ -5,6 +5,15 @@ on:
   pull_request:
 
 jobs:
+  # Runs first and on its own: a raw tab or carriage return inside a string
+  # literal compiles on MSVC and fails on clang, so the build jobs cannot be
+  # trusted to notice it.
+  source-characters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/check_source_chars.py
+
   windows-msvc:
     runs-on: windows-latest
     steps:

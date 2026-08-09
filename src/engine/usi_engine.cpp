@@ -104,8 +104,8 @@ std::vector<std::string> UsiEngine::HandleSetOption(const std::string& line) {
   // wherever the user keeps it, and that path can have spaces in it.
   std::string value;
   std::getline(iss, value);
-  const size_t first = value.find_first_not_of(" 	");
-  const size_t last = value.find_last_not_of(" 	");
+  const size_t first = value.find_first_not_of(" \t");
+  const size_t last = value.find_last_not_of(" \t\r");
   value = first == std::string::npos ? "" : value.substr(first, last - first + 1);
 
   if (name == kHashOption) {

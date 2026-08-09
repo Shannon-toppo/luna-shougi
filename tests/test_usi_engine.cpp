@@ -155,6 +155,26 @@ TEST_CASE("setoption resizes the hash without disturbing the search", "[usi]") {
   REQUIRE(luna::movegen::IsLegal(pos, luna::MoveFromUsi(BestmoveOf(response))));
 }
 
+TEST_CASE("setoption keeps a value's spaces but not what surrounds it", "[usi]") {
+  luna::UsiEngine engine;
+
+  // A network lives wherever the user keeps it, and that path can have spaces
+  // in it, so the value is everything after "value" rather than one token.
+  // What it must not keep is the carriage return a GUI on the other end of a
+  // pipe leaves behind: the path would then name a file that does not exist.
+  //
+  // Compared whole rather than by prefix: a trailing carriage return still
+  // matches a prefix, which is exactly the mistake this test is here to catch.
+  const auto response =
+      engine.HandleCommand("setoption name EvalFile value C:\\nets\\no such net.nnue\r");
+  REQUIRE_FALSE(response.empty());
+  REQUIRE(response[0] == "info string EvalFile failed: cannot open C:\\nets\\no such net.nnue");
+
+  // Whatever the path was, a failed load leaves the engine playing.
+  engine.HandleCommand("position startpos");
+  REQUIRE(BestmoveOf(engine.HandleCommand("go depth 2")).size() >= 4);
+}
+
 TEST_CASE("setoption with a malformed value is ignored", "[usi]") {
   luna::UsiEngine engine;
   engine.HandleCommand("setoption name USI_Hash value huge");
