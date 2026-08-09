@@ -130,6 +130,21 @@ MoveList GenerateLegal(Position& pos) {
   return moves;
 }
 
+void GenerateLegalCaptures(Position& pos, MoveList& out) {
+  MoveList pseudo;
+  GeneratePseudoLegal(pos, pseudo);
+
+  const Color us = pos.SideToMove();
+  for (const Move m : pseudo) {
+    if (m.IsDrop()) continue;
+    if (!m.IsPromotion() && pos.PieceOn(m.To()) == kNoPiece) continue;
+    pos.DoMove(m);
+    const bool legal = !pos.IsKingAttacked(us);
+    pos.UndoMove();
+    if (legal) out.Add(m);
+  }
+}
+
 bool IsCheckmate(Position& pos) {
   if (!pos.InCheck()) return false;
   MoveList replies;

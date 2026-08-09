@@ -41,6 +41,17 @@ class Position {
   bool IsKingAttacked(Color c) const;
   bool InCheck() const { return IsKingAttacked(side_); }
 
+  // True when this exact position (board, hands and side to move alike) has
+  // already occurred among the moves played through DoMove. Only the moves
+  // since the last capture or drop are examined, because those two make every
+  // earlier position unreachable: a captured piece changes hands for good.
+  //
+  // Shogi calls a draw on the fourth occurrence, but a search that treats the
+  // first repetition as a draw is the usual and much cheaper approximation.
+  // 連続王手の千日手 (perpetual check, a loss for the checking side) is not
+  // distinguished here.
+  bool IsRepetition() const;
+
   // `m` must be pseudo-legal for the current side to move.
   void DoMove(Move m);
   void UndoMove();

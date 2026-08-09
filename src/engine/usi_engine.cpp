@@ -6,12 +6,19 @@
 
 #include "core/move.hpp"
 #include "core/movegen.hpp"
+#include "search/timeman.hpp"
+#include "search/tt.hpp"
 
 namespace luna {
 
 namespace {
 constexpr const char* kEngineName = "luna-shougi";
 constexpr const char* kEngineAuthor = "Toppo";
+
+// USI_Ponder is deliberately not offered: without a search thread there is no
+// way to hold a "go ponder" open until "ponderhit", so a GUI must not be told
+// pondering works.
+constexpr const char* kHashOption = "USI_Hash";
 }  // namespace
 
 GoParams ParseGoParams(const std::string& line) {
@@ -76,15 +83,56 @@ void UsiEngine::HandlePosition(const std::string& line) {
   }
 }
 
+void UsiEngine::HandleSetOption(const std::string& line) {
+  // setoption name <id> value <x>
+  std::istringstream iss(line);
+  std::string token;
+  std::string name;
+  std::string value;
+  iss >> token;  // "setoption"
+  if (!(iss >> token) || token != "name") return;
+  if (!(iss >> name)) return;
+  if (!(iss >> token) || token != "value") return;
+  if (!(iss >> value)) return;
+
+  if (name == kHashOption) {
+    try {
+      search_.Tt().Resize(static_cast<size_t>(std::stoul(value)));
+    } catch (const std::exception&) {
+      // A GUI sending a non-numeric size gets the current one kept.
+    }
+  }
+}
+
 std::vector<std::string> UsiEngine::HandleGo(const std::string& line) {
   const GoParams params = ParseGoParams(line);
-  (void)params;  // Timing and depth limits arrive with phase 3's search.
 
-  const MoveList legal = movegen::GenerateLegal(position_);
-  if (legal.Empty()) return {"bestmove resign"};
+  SearchLimits limits;
+  limits.btime = params.btime.value_or(0);
+  limits.wtime = params.wtime.value_or(0);
+  limits.binc = params.binc.value_or(0);
+  limits.winc = params.winc.value_or(0);
+  limits.byoyomi = params.byoyomi.value_or(0);
+  limits.movetime = params.movetime.value_or(0);
+  limits.depth = params.depth.value_or(0);
+  limits.nodes = params.nodes.value_or(0);
+  limits.infinite = params.infinite;
 
-  std::uniform_int_distribution<int> dist(0, legal.Size() - 1);
-  return {std::string("bestmove ") + ToUsi(legal[dist(rng_)])};
+  // With no sink installed by Run, the info lines travel back with the
+  // bestmove instead of being streamed. Tests read them that way.
+  std::vector<std::string> response;
+  if (info_sink_) {
+    search_.SetInfoSink(info_sink_);
+  } else {
+    search_.SetInfoSink([&response](const std::string& info) { response.push_back(info); });
+  }
+
+  const SearchResult result = search_.Think(position_, limits);
+  search_.SetInfoSink(nullptr);
+
+  response.push_back(result.best.IsNone() ? "bestmove resign"
+                                          : "bestmove " + ToUsi(result.best));
+  return response;
 }
 
 std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
@@ -93,9 +141,14 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
   iss >> cmd;
 
   if (cmd == "usi") {
+    std::ostringstream hash_option;
+    hash_option << "option name " << kHashOption << " type spin default "
+                << TranspositionTable::kDefaultSizeMb << " min 1 max "
+                << TranspositionTable::kMaxSizeMb;
     return {
         std::string("id name ") + kEngineName,
         std::string("id author ") + kEngineAuthor,
+        hash_option.str(),
         "usiok",
     };
   }
@@ -104,6 +157,11 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
   }
   if (cmd == "usinewgame") {
     position_ = Position();
+    search_.NewGame();
+    return {};
+  }
+  if (cmd == "setoption") {
+    HandleSetOption(line);
     return {};
   }
   if (cmd == "position") {
@@ -117,13 +175,20 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
     quit_requested_ = true;
     return {};
   }
-  // Everything else (setoption, stop, ponderhit, gameover, ...) is silently
-  // ignored: phase 2's move choice is instant, so there is never a search in
-  // flight for "stop" to cancel.
+  // Everything else (stop, ponderhit, gameover, ...) is silently ignored.
+  // "stop" in particular cannot be honoured: the search runs inside this same
+  // call, so nothing reads input while it is in flight.
   return {};
 }
 
 void UsiEngine::Run(std::istream& in, std::ostream& out) {
+  // Streaming the search's info lines is the whole reason a GUI shows a depth
+  // counter ticking up instead of freezing until the move appears.
+  info_sink_ = [&out](const std::string& info) {
+    out << info << "\n";
+    out.flush();
+  };
+
   std::string line;
   while (!quit_requested_ && std::getline(in, line)) {
     for (const auto& response : HandleCommand(line)) {
@@ -131,6 +196,8 @@ void UsiEngine::Run(std::istream& in, std::ostream& out) {
     }
     out.flush();
   }
+
+  info_sink_ = nullptr;
 }
 
 }  // namespace luna

@@ -199,3 +199,40 @@ TEST_CASE("a rook is blocked by the piece in front of it", "[position][attacks]"
   REQUIRE_FALSE(pos.IsSquareAttacked(luna::MakeSquare(5, 3), luna::kBlack));
   REQUIRE_FALSE(pos.IsSquareAttacked(luna::MakeSquare(5, 1), luna::kBlack));
 }
+
+TEST_CASE("a fresh position has repeated nothing", "[position][repetition]") {
+  const Position pos;
+
+  REQUIRE_FALSE(pos.IsRepetition());
+}
+
+TEST_CASE("shuffling both kings back and forth repeats the position",
+          "[position][repetition]") {
+  Position pos;
+  const uint64_t start_key = pos.Key();
+
+  for (const char* move : {"5i5h", "5a5b", "5h5i"}) {
+    pos.DoMove(MoveFromUsi(move));
+    REQUIRE_FALSE(pos.IsRepetition());
+  }
+
+  pos.DoMove(MoveFromUsi("5b5a"));
+
+  REQUIRE(pos.Key() == start_key);
+  REQUIRE(pos.IsRepetition());
+}
+
+TEST_CASE("a repetition after a capture is still found", "[position][repetition]") {
+  // The scan stops at the capture because nothing before it can come back,
+  // but everything after it still has to be looked at.
+  Position pos = FromSfen("4k4/7b1/9/9/9/9/9/1B7/4K4 b - 1");
+  pos.DoMove(MoveFromUsi("8h2b+"));
+  const uint64_t after_capture = pos.Key();
+
+  for (const char* move : {"5a5b", "5i5h", "5b5a", "5h5i"}) {
+    pos.DoMove(MoveFromUsi(move));
+  }
+
+  REQUIRE(pos.Key() == after_capture);
+  REQUIRE(pos.IsRepetition());
+}

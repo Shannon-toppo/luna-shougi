@@ -1,5 +1,6 @@
 #include "engine/usi_engine.hpp"
 
+#include <chrono>
 #include <sstream>
 #include <string>
 
@@ -19,10 +20,11 @@ bool Contains(const std::vector<std::string>& lines, const std::string& prefix) 
 }
 
 // Extracts the move token following "bestmove " from a HandleCommand result.
+// The search's info lines come first; the bestmove is always the last line.
 std::string BestmoveOf(const std::vector<std::string>& response) {
-  REQUIRE(response.size() == 1);
-  REQUIRE(response.front().rfind("bestmove ", 0) == 0);
-  return response.front().substr(std::string("bestmove ").size());
+  REQUIRE_FALSE(response.empty());
+  REQUIRE(response.back().rfind("bestmove ", 0) == 0);
+  return response.back().substr(std::string("bestmove ").size());
 }
 
 }  // namespace
@@ -86,7 +88,7 @@ TEST_CASE("position replays moves before go picks from the resulting position",
           "[usi][go]") {
   luna::UsiEngine engine;
   engine.HandleCommand("position startpos moves 7g7f 3c3d");
-  const std::string bestmove = BestmoveOf(engine.HandleCommand("go byoyomi 5000"));
+  const std::string bestmove = BestmoveOf(engine.HandleCommand("go byoyomi 200"));
 
   luna::Position pos;
   pos.SetSfen(luna::kStartSfen);
@@ -131,4 +133,93 @@ TEST_CASE("ParseGoParams reads flags and increments", "[usi][go]") {
   REQUIRE(params.binc == 1000);
   REQUIRE(params.winc == 2000);
   REQUIRE_FALSE(params.btime.has_value());
+}
+
+TEST_CASE("usi advertises the hash option", "[usi]") {
+  luna::UsiEngine engine;
+  const auto response = engine.HandleCommand("usi");
+
+  REQUIRE(Contains(response, "option name USI_Hash type spin"));
+  // Pondering is not implemented, so it must not be offered.
+  REQUIRE_FALSE(Contains(response, "option name USI_Ponder"));
+}
+
+TEST_CASE("setoption resizes the hash without disturbing the search", "[usi]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("setoption name USI_Hash value 1");
+  engine.HandleCommand("position startpos");
+
+  const auto response = engine.HandleCommand("go depth 3");
+
+  luna::Position pos;
+  REQUIRE(luna::movegen::IsLegal(pos, luna::MoveFromUsi(BestmoveOf(response))));
+}
+
+TEST_CASE("setoption with a malformed value is ignored", "[usi]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("setoption name USI_Hash value huge");
+  engine.HandleCommand("position startpos");
+
+  REQUIRE(BestmoveOf(engine.HandleCommand("go depth 2")).size() >= 4);
+}
+
+TEST_CASE("go reports info lines before the bestmove", "[usi][go]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("position startpos");
+
+  const auto response = engine.HandleCommand("go depth 3");
+
+  REQUIRE(response.size() > 1);
+  REQUIRE(Contains(response, "info depth 1"));
+  REQUIRE(Contains(response, "info depth 3"));
+  REQUIRE(response.back().rfind("bestmove ", 0) == 0);
+  for (size_t i = 0; i + 1 < response.size(); ++i) {
+    REQUIRE(response[i].rfind("info ", 0) == 0);
+  }
+}
+
+TEST_CASE("go plays the mate instead of a random legal move", "[usi][go]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("position sfen 4k4/9/4GG3/9/9/9/9/9/4K4 b - 1");
+
+  const auto response = engine.HandleCommand("go depth 3");
+
+  REQUIRE(BestmoveOf(response) == "5c5b");
+}
+
+TEST_CASE("byoyomi bounds how long go takes", "[usi][go]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("position startpos");
+
+  const auto start = std::chrono::steady_clock::now();
+  engine.HandleCommand("go btime 0 wtime 0 byoyomi 200");
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  REQUIRE(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() < 3000);
+}
+
+TEST_CASE("Run streams info lines as the search produces them", "[usi][go]") {
+  luna::UsiEngine engine;
+  std::istringstream in("position startpos\ngo depth 3\nquit\n");
+  std::ostringstream out;
+
+  engine.Run(in, out);
+  const std::string output = out.str();
+
+  const size_t info = output.find("info depth 1");
+  const size_t bestmove = output.find("bestmove ");
+  REQUIRE(info != std::string::npos);
+  REQUIRE(bestmove != std::string::npos);
+  REQUIRE(info < bestmove);
+}
+
+TEST_CASE("usinewgame resets the position and the search", "[usi]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("position startpos moves 7g7f");
+  engine.HandleCommand("usinewgame");
+
+  const std::string bestmove = BestmoveOf(engine.HandleCommand("go depth 2"));
+
+  luna::Position pos;
+  REQUIRE(luna::movegen::IsLegal(pos, luna::MoveFromUsi(bestmove)));
 }

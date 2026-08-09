@@ -19,6 +19,14 @@ void GenerateLegal(Position& pos, MoveList& out);
 
 MoveList GenerateLegal(Position& pos);
 
+// The legal moves that change material: captures and promotions. This is what
+// a quiescence search follows, so drops are left out entirely — a drop neither
+// captures nor promotes, which also keeps 打ち歩詰め out of the picture.
+//
+// Not valid when the side to move is in check: an evasion may well be a quiet
+// move, and this would report none.
+void GenerateLegalCaptures(Position& pos, MoveList& out);
+
 // True when `pos` is check and the side to move has no legal reply.
 bool IsCheckmate(Position& pos);
 

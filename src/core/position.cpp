@@ -216,6 +216,17 @@ bool Position::IsKingAttacked(Color c) const {
   return IsSquareAttacked(king, Opponent(c));
 }
 
+bool Position::IsRepetition() const {
+  const int played = static_cast<int>(history_.size());
+  for (int i = played - 1; i >= 0; --i) {
+    const StateInfo& state = history_[i];
+    // state.key is the position before state.move was played.
+    if (state.captured != kNoPiece || state.move.IsDrop()) break;
+    if ((played - i) % 2 == 0 && state.key == key_) return true;
+  }
+  return false;
+}
+
 void Position::DoMove(Move m) {
   const zobrist::Table& keys = zobrist::Keys();
   const Color us = side_;

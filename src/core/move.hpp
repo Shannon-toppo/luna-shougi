@@ -21,6 +21,11 @@ class Move {
 
   static constexpr Move None() { return Move(0); }
 
+  // Rebuilds a move from its packed form. Used by the transposition table,
+  // which stores the 16 bits and nothing else; the result carries no guarantee
+  // of being legal, or even well formed, in any position.
+  static constexpr Move FromRaw(uint16_t raw) { return Move(raw); }
+
   static constexpr Move Normal(Square from, Square to, bool promote) {
     return Move(static_cast<uint16_t>(to | (from << 7) | (promote ? 1u << 14 : 0u)));
   }
@@ -57,6 +62,7 @@ class MoveList {
   int Size() const { return size_; }
   bool Empty() const { return size_ == 0; }
   Move operator[](int i) const { return moves_[i]; }
+  Move& operator[](int i) { return moves_[i]; }
   bool Contains(Move m) const;
 
   const Move* begin() const { return moves_.data(); }
