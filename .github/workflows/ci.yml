@@ -35,13 +35,16 @@ jobs:
       - name: Install numpy
         run: pip install numpy
 
+      # A tight node cap rather than depth alone. Depth does not bound the
+      # work: quiescence is unpruned, and one middlegame position at depth 3
+      # costs 355k nodes against 2.5k for the starting position.
+      - name: Generate positions
+        run: ./build/Release/luna-datagen.exe --out ci.bin --sfen-out ci.sfen --games 6 --depth 4 --nodes 30000 --maxply 80 --concurrency 2
+
       # The trainer and the engine compute the same network twice, in Python
       # and in AVX2. A disagreement between them makes every measurement taken
       # during training meaningless, and nothing else would notice it, so it is
       # checked on every push rather than when someone remembers to.
-      - name: Generate positions
-        run: ./build/Release/luna-datagen.exe --out ci.bin --sfen-out ci.sfen --games 6 --depth 3 --maxply 100 --concurrency 2
-
       - name: Python and C++ agree on the evaluation
         run: python -m training.verify --engine build/Release/luna-shougi.exe --random-net ci.nnue --sfen ci.sfen
 
@@ -67,7 +70,7 @@ jobs:
         run: pip install numpy
 
       - name: Generate positions
-        run: ./build/luna-datagen --out ci.bin --sfen-out ci.sfen --games 6 --depth 3 --maxply 100 --concurrency 2
+        run: ./build/luna-datagen --out ci.bin --sfen-out ci.sfen --games 6 --depth 4 --nodes 30000 --maxply 80 --concurrency 2
 
       # The same check as on Windows, but against the NEON kernels. This is the
       # only automated test the NEON path gets: it cannot run on the machine

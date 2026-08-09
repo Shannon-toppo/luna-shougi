@@ -18,9 +18,13 @@ Output:
   --sfen-out FILE        also write the SFEN of every sample, one per line,
                          for training/verify.py to read back
 
-Search, pick one (default: --depth 6):
-  --depth N              fixed depth per move
-  --nodes N              fixed node count per move
+Search (default: --depth 6 --nodes 2000000):
+  --depth N              depth per move, 0 for no depth limit
+  --nodes N              node cap per move, 0 for no cap. Applies alongside
+                         --depth; whichever comes first ends the search. The
+                         cap is on by default because quiescence is not yet
+                         pruned, and one middlegame position can otherwise
+                         cost a hundred times what a quiet one does.
   --hash MB              transposition table per thread (default 32)
 
 Games:

@@ -44,11 +44,11 @@ Game PlayGame(const Config& config, Search& search, uint64_t seed) {
 
   SearchLimits limits;
   limits.depth = config.depth;
-  limits.nodes = config.nodes;
   // No clock is set, so ComputeTimeBudget leaves the search unlimited and the
-  // depth or node count is the only thing that ends it. That is what makes a
+  // depth and node count are the only things that end it. Both apply, and
+  // whichever is reached first stops the search. That is what makes a
   // generation run reproducible: same seed, same data, whatever the machine.
-  if (config.nodes > 0) limits.depth = 0;
+  limits.nodes = config.nodes;
 
   Game game;
   search.NewGame();

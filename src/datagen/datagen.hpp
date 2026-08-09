@@ -15,10 +15,23 @@ struct Config {
   bool append = false;
 
   int games = 1000;
-  // One of the two, depth unless nodes is set. Fixed depth is reproducible
-  // and is what makes two runs on different machines comparable.
+
+  // Fixed depth is reproducible, and reproducibility is what makes two
+  // generation runs on different machines comparable.
+  //
+  // But a fixed depth does not bound the work. Quiescence has no pruning
+  // beyond the stand-pat cutoff yet, so a middlegame with a full hand can
+  // spend a hundred times what a quiet position spends at the same depth:
+  // measured at depth 3, 2.5k nodes from the starting position against 355k
+  // in a middlegame, reaching 26 plies past the horizon. Left alone, one
+  // position like that stalls a run.
+  //
+  // So `nodes` is a cap that applies alongside `depth`, whichever comes
+  // first, and it is on by default. It stays reproducible: the node count of
+  // a given position at a given depth is the same everywhere. Set it to 0 to
+  // take the brakes off, or set `depth` to 0 to search by node count alone.
   int depth = 6;
-  int64_t nodes = 0;
+  int64_t nodes = 2'000'000;
 
   // Random legal moves played before the search takes over. Without them
   // every game from a deterministic engine would be the same game.
