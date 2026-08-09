@@ -5,6 +5,15 @@ on:
   pull_request:
 
 jobs:
+  # Runs first and on its own: a raw tab or carriage return inside a string
+  # literal compiles on MSVC and fails on clang, so the build jobs cannot be
+  # trusted to notice it.
+  source-characters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/check_source_chars.py
+
   windows-msvc:
     runs-on: windows-latest
     steps:
@@ -19,6 +28,26 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install numpy
+        run: pip install numpy
+
+      # A tight node cap rather than depth alone. Depth does not bound the
+      # work: quiescence is unpruned, and one middlegame position at depth 3
+      # costs 355k nodes against 2.5k for the starting position.
+      - name: Generate positions
+        run: ./build/Release/luna-datagen.exe --out ci.bin --sfen-out ci.sfen --games 6 --depth 4 --nodes 30000 --maxply 80 --concurrency 2
+
+      # The trainer and the engine compute the same network twice, in Python
+      # and in AVX2. A disagreement between them makes every measurement taken
+      # during training meaningless, and nothing else would notice it, so it is
+      # checked on every push rather than when someone remembers to.
+      - name: Python and C++ agree on the evaluation
+        run: python -m training.verify --engine build/Release/luna-shougi.exe --random-net ci.nnue --sfen ci.sfen
+
   macos-arm64:
     runs-on: macos-14
     steps:
@@ -32,3 +61,19 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install numpy
+        run: pip install numpy
+
+      - name: Generate positions
+        run: ./build/luna-datagen --out ci.bin --sfen-out ci.sfen --games 6 --depth 4 --nodes 30000 --maxply 80 --concurrency 2
+
+      # The same check as on Windows, but against the NEON kernels. This is the
+      # only automated test the NEON path gets: it cannot run on the machine
+      # the engine is developed on.
+      - name: Python and C++ agree on the evaluation
+        run: python -m training.verify --engine build/luna-shougi --random-net ci.nnue --sfen ci.sfen

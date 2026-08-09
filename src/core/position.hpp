@@ -15,6 +15,25 @@ inline constexpr const char* kStartSfen =
 
 class Position {
  public:
+  // What a DoMove has to be able to take back, plus enough to say what the
+  // move did to the position without having that position at hand. That last
+  // part is what lets incremental evaluation replay a run of moves from an
+  // accumulator it computed several plies ago.
+  struct Undo {
+    Move move;
+    // The piece as it stood before the move, or the dropped piece. Its colour
+    // is the side that played.
+    Piece moved;
+    // kNoPiece when nothing was captured.
+    Piece captured;
+    // The hand slot the move filled or emptied, counting from 0: the slot the
+    // captured piece landed in, or the one the dropped piece came out of. -1
+    // when no hand changed.
+    int8_t hand_index;
+    // Zobrist key of the position the move was played in.
+    uint64_t key;
+  };
+
   // Starts at the initial position.
   Position();
 
@@ -32,6 +51,12 @@ class Position {
 
   // Number of moves played through DoMove that can still be taken back.
   int UndoableMoves() const { return static_cast<int>(history_.size()); }
+
+  // The `index`-th move played through DoMove, counting from 0. Incremental
+  // evaluation walks this backwards to work out which features changed since
+  // the last position it had computed. `index` must be in
+  // [0, UndoableMoves()).
+  const Undo& UndoAt(int index) const { return history_[static_cast<size_t>(index)]; }
 
   // True when any piece of `by` attacks `sq`, whatever occupies it.
   bool IsSquareAttacked(Square sq, Color by) const;
@@ -60,12 +85,6 @@ class Position {
   uint64_t ComputeKey() const;
 
  private:
-  struct StateInfo {
-    Move move;
-    Piece captured;
-    uint64_t key;
-  };
-
   void Clear();
 
   std::array<Piece, kSquareNb> board_{};
@@ -74,7 +93,7 @@ class Position {
   Color side_ = kBlack;
   int ply_ = 1;
   uint64_t key_ = 0;
-  std::vector<StateInfo> history_;
+  std::vector<Undo> history_;
 };
 
 }  // namespace luna

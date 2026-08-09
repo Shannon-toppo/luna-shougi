@@ -32,6 +32,9 @@ GoParams ParseGoParams(const std::string& line);
 // "go". One command outside USI is understood: "eval" reports the static
 // evaluation of the current position broken into its terms.
 //
+// "setoption name EvalFile value <path>" loads an NNUE network, after which
+// it, rather than the hand-written terms, is what "go" searches with.
+//
 // The search runs inside HandleCommand, so nothing is read from the GUI while
 // it is thinking and "stop" cannot arrive in time to be acted on. Time
 // management is what ends a search; a search thread arrives in phase 6.
@@ -51,8 +54,9 @@ class UsiEngine {
 
  private:
   void HandlePosition(const std::string& line);
-  void HandleSetOption(const std::string& line);
+  std::vector<std::string> HandleSetOption(const std::string& line);
   std::vector<std::string> HandleGo(const std::string& line);
+  std::vector<std::string> HandleEval() const;
 
   Position position_;
   Search search_;

@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 
+#include "nnue/evaluate.hpp"
 #include "search/pst.hpp"
 
 namespace luna::eval {
@@ -192,6 +193,12 @@ int PromotionGain(PieceType pt) {
 }
 
 int Evaluate(const Position& pos) {
+  // A loaded network replaces all of this. The terms below stay in the build
+  // because they are what the engine falls back to with no network file, and
+  // because a position HalfKP cannot describe — one with a king missing —
+  // still has to score somehow.
+  if (nnue::IsLoaded() && nnue::CanEvaluate(pos)) return nnue::Evaluate(pos);
+
   EvalTerms terms;
   return Accumulate(pos, terms);
 }

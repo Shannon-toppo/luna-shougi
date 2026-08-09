@@ -8,6 +8,17 @@ cmake-build-*/
 .idea/
 *.user
 
+# Training artefacts. A network is 64MB and a data set is tens of gigabytes;
+# neither belongs in git. docs/nnue.md says how to make them again.
+*.nnue
+*.bin
+*.sfen
+data/
+nets/
+runs/
+__pycache__/
+*.pyc
+
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
