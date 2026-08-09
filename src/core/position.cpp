@@ -219,7 +219,7 @@ bool Position::IsKingAttacked(Color c) const {
 bool Position::IsRepetition() const {
   const int played = static_cast<int>(history_.size());
   for (int i = played - 1; i >= 0; --i) {
-    const StateInfo& state = history_[i];
+    const Undo& state = history_[i];
     // state.key is the position before state.move was played.
     if (state.captured != kNoPiece || state.move.IsDrop()) break;
     if ((played - i) % 2 == 0 && state.key == key_) return true;
@@ -231,19 +231,22 @@ void Position::DoMove(Move m) {
   const zobrist::Table& keys = zobrist::Keys();
   const Color us = side_;
   const Square to = m.To();
-  StateInfo state{m, kNoPiece, key_};
+  Undo state{m, kNoPiece, kNoPiece, -1, key_};
 
   if (m.IsDrop()) {
     const PieceType pt = m.DroppedType();
     const Piece dropped = MakePiece(us, pt);
+    state.moved = dropped;
     board_[to] = dropped;
     key_ ^= keys.psq[dropped][to];
     key_ ^= keys.hand[us][pt][hand_[us][pt]];
     --hand_[us][pt];
+    state.hand_index = static_cast<int8_t>(hand_[us][pt]);
     key_ ^= keys.hand[us][pt][hand_[us][pt]];
   } else {
     const Square from = m.From();
     const Piece moved = board_[from];
+    state.moved = moved;
     key_ ^= keys.psq[moved][from];
     board_[from] = kNoPiece;
 
@@ -253,6 +256,7 @@ void Position::DoMove(Move m) {
       const PieceType raw = RawType(TypeOf(captured));
       key_ ^= keys.psq[captured][to];
       key_ ^= keys.hand[us][raw][hand_[us][raw]];
+      state.hand_index = static_cast<int8_t>(hand_[us][raw]);
       ++hand_[us][raw];
       key_ ^= keys.hand[us][raw][hand_[us][raw]];
     }
@@ -271,7 +275,7 @@ void Position::DoMove(Move m) {
 }
 
 void Position::UndoMove() {
-  const StateInfo state = history_.back();
+  const Undo state = history_.back();
   history_.pop_back();
 
   side_ = Opponent(side_);

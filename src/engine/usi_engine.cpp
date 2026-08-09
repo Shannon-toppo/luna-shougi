@@ -6,6 +6,7 @@
 
 #include "core/move.hpp"
 #include "core/movegen.hpp"
+#include "nnue/evaluate.hpp"
 #include "search/eval.hpp"
 #include "search/timeman.hpp"
 #include "search/tt.hpp"
@@ -20,6 +21,11 @@ constexpr const char* kEngineAuthor = "Toppo";
 // way to hold a "go ponder" open until "ponderhit", so a GUI must not be told
 // pondering works.
 constexpr const char* kHashOption = "USI_Hash";
+
+// Path to the NNUE network. Empty, the default, means the hand-written
+// evaluation. A GUI sets it through its engine settings dialog like any other
+// string option.
+constexpr const char* kEvalFileOption = "EvalFile";
 }  // namespace
 
 GoParams ParseGoParams(const std::string& line) {
@@ -84,17 +90,23 @@ void UsiEngine::HandlePosition(const std::string& line) {
   }
 }
 
-void UsiEngine::HandleSetOption(const std::string& line) {
+std::vector<std::string> UsiEngine::HandleSetOption(const std::string& line) {
   // setoption name <id> value <x>
   std::istringstream iss(line);
   std::string token;
   std::string name;
-  std::string value;
   iss >> token;  // "setoption"
-  if (!(iss >> token) || token != "name") return;
-  if (!(iss >> name)) return;
-  if (!(iss >> token) || token != "value") return;
-  if (!(iss >> value)) return;
+  if (!(iss >> token) || token != "name") return {};
+  if (!(iss >> name)) return {};
+  if (!(iss >> token) || token != "value") return {};
+
+  // Everything after "value" is the value, spaces included: a network sits
+  // wherever the user keeps it, and that path can have spaces in it.
+  std::string value;
+  std::getline(iss, value);
+  const size_t first = value.find_first_not_of(" 	");
+  const size_t last = value.find_last_not_of(" 	");
+  value = first == std::string::npos ? "" : value.substr(first, last - first + 1);
 
   if (name == kHashOption) {
     try {
@@ -102,7 +114,36 @@ void UsiEngine::HandleSetOption(const std::string& line) {
     } catch (const std::exception&) {
       // A GUI sending a non-numeric size gets the current one kept.
     }
+    return {};
   }
+
+  if (name == kEvalFileOption) {
+    if (value.empty()) {
+      nnue::Unload();
+      return {"info string eval hand-written"};
+    }
+    std::string error;
+    if (!nnue::Load(value, error)) {
+      // Falling back rather than refusing to start: a wrong path in a GUI
+      // config should cost strength, not a game.
+      return {"info string EvalFile failed: " + error, "info string eval hand-written"};
+    }
+    return {"info string eval nnue " + value + " (" + nnue::SimdName() + ")"};
+  }
+  return {};
+}
+
+std::vector<std::string> UsiEngine::HandleEval() const {
+  std::ostringstream trace;
+  if (nnue::IsLoaded() && nnue::CanEvaluate(position_)) {
+    trace << "info string eval nnue " << nnue::Evaluate(position_) << " net " << nnue::LoadedPath()
+          << " (" << nnue::SimdName() << ")";
+    return {trace.str()};
+  }
+  const eval::EvalTerms terms = eval::Trace(position_);
+  trace << "info string eval material " << terms.material << " pst " << terms.pst << " king "
+        << terms.king_safety << " tempo " << terms.tempo << " total " << terms.total;
+  return {trace.str()};
 }
 
 std::vector<std::string> UsiEngine::HandleGo(const std::string& line) {
@@ -150,6 +191,7 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
         std::string("id name ") + kEngineName,
         std::string("id author ") + kEngineAuthor,
         hash_option.str(),
+        std::string("option name ") + kEvalFileOption + " type string default ",
         "usiok",
     };
   }
@@ -162,8 +204,7 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
     return {};
   }
   if (cmd == "setoption") {
-    HandleSetOption(line);
-    return {};
+    return HandleSetOption(line);
   }
   if (cmd == "position") {
     HandlePosition(line);
@@ -177,15 +218,11 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
     return {};
   }
   if (cmd == "eval") {
-    // Not part of USI. The evaluation is hand-written and its terms pull
-    // against each other, so being able to ask what a position scores and why
-    // is the only practical way to tell a tuning change from a bug. Sent as
-    // "info string" so a GUI that somehow receives it just ignores it.
-    const eval::EvalTerms terms = eval::Trace(position_);
-    std::ostringstream trace;
-    trace << "info string eval material " << terms.material << " pst " << terms.pst << " king "
-          << terms.king_safety << " tempo " << terms.tempo << " total " << terms.total;
-    return {trace.str()};
+    // Not part of USI. Being able to ask what a position scores is the only
+    // practical way to tell a tuning change from a bug, and with a network
+    // loaded it is also how the C++ side gets compared against the trainer.
+    // Sent as "info string" so a GUI that somehow receives it just ignores it.
+    return HandleEval();
   }
   // Everything else (stop, ponderhit, gameover, ...) is silently ignored.
   // "stop" in particular cannot be honoured: the search runs inside this same

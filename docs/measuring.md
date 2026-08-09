@@ -32,7 +32,10 @@ cmake -S /tmp/luna-before -B /tmp/luna-before-build -A x64 -DLUNA_BUILD_TESTS=OF
 - `--byoyomi MS` / `--time MS` 実戦に近い時間管理まで含めて測りたいとき
 - `--concurrency N` 並列対局数。7800X3Dなら8。物理コアを超えると1局あたりの実効速度が落ちて、時間管理の挙動まで変わってしまうので超えないこと
 - `--games N` 偶数に切り上げられる。同じ開始局面を先後入れ替えて2局指すため
-- `--record FILE` 全局を `position sfen ... moves ...` 形式で書き出す。フェーズ5の教師データ生成で使う
+- `--record FILE` 全局を `position sfen ... moves ...` 形式で書き出す
+- `--option NAME=VALUE` 片方のエンジンにだけ `EvalFile` を渡せば、NNUEと手書き評価の差だけが測れる
+
+NNUE用の教師データは `luna-match` ではなく `luna-datagen` が作る。プロセス内で自己対局するぶん速い。手順は `docs/nnue.md`。
 
 ## 出力の読み方
 

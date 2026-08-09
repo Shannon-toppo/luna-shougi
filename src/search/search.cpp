@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "core/movegen.hpp"
+#include "nnue/evaluate.hpp"
 
 namespace luna {
 namespace {
@@ -45,6 +46,7 @@ void Search::NewGame() {
   tt_.Clear();
   std::fill(history_.begin(), history_.end(), 0);
   for (Node& node : stack_) node.killers.fill(Move::None());
+  nnue::ClearCache();
 }
 
 int& Search::HistoryOf(Color us, Move m) {

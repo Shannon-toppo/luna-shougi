@@ -1,0 +1,13 @@
+# The engine builds and runs without any of this. Only training needs it.
+#
+# torch has to match the CUDA the driver provides. On the RTX 4070 Ti box that
+# is the cu128 wheel, which pip will not pick by itself:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r training/requirements.txt
+#
+# On a machine with no CUDA, plain "pip install torch" gives the CPU build,
+# which is enough to run the tests and training/verify.py but far too slow to
+# train a net with.
+numpy>=1.24
+torch>=2.0
