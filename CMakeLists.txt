@@ -14,6 +14,12 @@ endif()
 option(LUNA_BUILD_TESTS "Build unit tests" ON)
 
 add_library(luna_engine
+  src/core/attacks.cpp
+  src/core/move.cpp
+  src/core/movegen.cpp
+  src/core/perft.cpp
+  src/core/position.cpp
+  src/core/zobrist.cpp
   src/engine/usi_engine.cpp
 )
 target_include_directories(luna_engine PUBLIC src)

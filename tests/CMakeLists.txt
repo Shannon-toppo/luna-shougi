@@ -7,6 +7,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(luna_tests
+  test_movegen.cpp
+  test_perft.cpp
+  test_position.cpp
   test_usi_engine.cpp
 )
 target_link_libraries(luna_tests PRIVATE luna_engine Catch2::Catch2WithMain)
