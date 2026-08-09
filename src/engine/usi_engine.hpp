@@ -28,8 +28,9 @@ struct GoParams {
 // Accepts either a full "go ..." line or just its arguments.
 GoParams ParseGoParams(const std::string& line);
 
-// Phase 3: the USI handshake, position/go/bestmove, and an alpha-beta search
-// behind "go".
+// The USI handshake, position/go/bestmove, and an alpha-beta search behind
+// "go". One command outside USI is understood: "eval" reports the static
+// evaluation of the current position broken into its terms.
 //
 // The search runs inside HandleCommand, so nothing is read from the GUI while
 // it is thinking and "stop" cannot arrive in time to be acted on. Time

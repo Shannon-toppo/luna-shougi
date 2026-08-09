@@ -6,6 +6,7 @@
 
 #include "core/move.hpp"
 #include "core/movegen.hpp"
+#include "search/eval.hpp"
 #include "search/timeman.hpp"
 #include "search/tt.hpp"
 
@@ -174,6 +175,17 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
   if (cmd == "quit") {
     quit_requested_ = true;
     return {};
+  }
+  if (cmd == "eval") {
+    // Not part of USI. The evaluation is hand-written and its terms pull
+    // against each other, so being able to ask what a position scores and why
+    // is the only practical way to tell a tuning change from a bug. Sent as
+    // "info string" so a GUI that somehow receives it just ignores it.
+    const eval::EvalTerms terms = eval::Trace(position_);
+    std::ostringstream trace;
+    trace << "info string eval material " << terms.material << " pst " << terms.pst << " king "
+          << terms.king_safety << " tempo " << terms.tempo << " total " << terms.total;
+    return {trace.str()};
   }
   // Everything else (stop, ponderhit, gameover, ...) is silently ignored.
   // "stop" in particular cannot be honoured: the search runs inside this same
