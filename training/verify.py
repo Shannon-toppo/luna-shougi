@@ -100,6 +100,29 @@ class Engine:
         simd = tokens[-1].strip("()")
         return int(tokens[4]), simd
 
+    def evaluate_either(self, sfen: str) -> tuple[int, str]:
+        """The score, from whichever evaluation the engine is using.
+
+        The two print different shapes, and the hand-written one leads with a
+        term rather than its total:
+
+            info string eval nnue -137 net D:/nets/gen1.nnue (avx2)
+            info string eval material 123 pst -45 king 0 tempo 30 total 108
+
+        Reading "the fifth token" gets `material` out of the second, which is
+        from black where `total` is from the side to move. On a mixed set of
+        positions that mistake looks exactly like a sign bug in the network.
+        """
+        self.send(f"position sfen {sfen}")
+        self.send("eval")
+        line = self.read_lines(lambda line: line.startswith("info string eval"))[-1]
+        tokens = line.split()
+        if len(tokens) >= 5 and tokens[3] == "nnue":
+            return int(tokens[4]), "nnue"
+        if "total" in tokens:
+            return int(tokens[tokens.index("total") + 1]), "hand-written"
+        raise RuntimeError(f"cannot read an evaluation out of: {line}")
+
     def close(self) -> None:
         try:
             self.send("quit")
