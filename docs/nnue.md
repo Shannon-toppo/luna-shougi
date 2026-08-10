@@ -18,6 +18,32 @@ luna-datagen  →  .bin (教師局面)  →  training.train  →  checkpoint.pt
 
 C++側は `src/nnue/` の5ファイル。Python側は `training/`。両方が同じネットワークを別々に計算していて、`training/verify.py` がその2つを1点も違わないことを確かめる。
 
+## Python環境
+
+uvが管理する。`pyproject.toml` と `uv.lock` がリポジトリに入っているので、初回は同期するだけでいい。
+
+```bash
+uv sync
+```
+
+以降、Python側のコマンドはすべて `uv run` を頭に付ける。
+
+```bash
+uv run python -m training.train --run runs/gen1 --data data/gen1.bin
+```
+
+**torchはPyPIから来ない**。CUDA版のtorchはPyTorch自身のインデックスにしか無く、どのインデックスを引くかがバイナリの積んでいるCUDAを決める。`pyproject.toml` は `cu132` を指していて、これは学習機のドライバ(RTX 4070 Ti、CUDA 13.2)に合わせたもの。ドライバを変えたらその1行を書き換えて `uv lock` を回し直す。
+
+CUDAが効いているかは、走らせる前に一度見ておくこと。**効いていなくてもエラーにはならず、ただCPUで遅く回るだけ**なので気づきにくい。
+
+```bash
+uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+```
+
+`2.13.0+cu132 True` のように、バージョンに `+cuXXX` が付いていて `True` が出れば正しい。`+cpu` と出たらCPU版が入っている。
+
+CIはtorchを入れていない。`training/verify.py` はnumpyだけで動くようにしてあり、CIが要るのはそこまでだからだ。1.8GBのwheelを毎push落とす理由はない。
+
 ## アーキテクチャ
 
 HalfKP → 256×2 → 512 → 32 → 32 → 1。
@@ -78,7 +104,7 @@ int8にスケール64を掛けると表現できるのは ±127/64 ≈ ±1.98 �
 自分の手書き評価が指した対局だけで学習したネットワークは、その手書き評価の間違いを覚えるだけになりやすい。最初の1世代だけ人間や強いエンジンの棋譜を使う手がある。
 
 ```bash
-python -m training.csa_to_data --out data/floodgate.bin --sfen-out data/floodgate.sfen wdoor2024/*.csa
+uv run python -m training.csa_to_data --out data/floodgate.bin --sfen-out data/floodgate.sfen wdoor2024/*.csa
 ```
 
 ただしCSA棋譜には**局面ごとの評価値がない**。スコアは0で書かれるので、このデータは `--lambda-score 0`(勝敗のみ)で学習すること。datagenのデータと1つの学習に混ぜてはいけない。
@@ -86,7 +112,7 @@ python -m training.csa_to_data --out data/floodgate.bin --sfen-out data/floodgat
 ## 2. 学習する
 
 ```bash
-python -m training.train --run runs/gen1 --data data/gen1.bin --steps 400000 --export nets/gen1.nnue
+uv run python -m training.train --run runs/gen1 --data data/gen1.bin --steps 400000 --export nets/gen1.nnue
 ```
 
 主なオプション:
@@ -108,11 +134,11 @@ python -m training.train --run runs/gen1 --data data/gen1.bin --steps 400000 --e
 
 ```bash
 # 別のシェルから止める(現在のステップを終えてチェックポイントを書いて終了)
-python -m training.control runs/gen1 stop
+uv run python -m training.control runs/gen1 stop
 
 # 一時停止。GPUは解放されるが、データのどこまで読んだかは保持したまま待つ
-python -m training.control runs/gen1 pause
-python -m training.control runs/gen1 resume
+uv run python -m training.control runs/gen1 pause
+uv run python -m training.control runs/gen1 resume
 
 # 学習プロセスで Ctrl+C。stop と同じ。2回目の Ctrl+C はチェックポイントを諦めて即終了
 ```
@@ -120,7 +146,7 @@ python -m training.control runs/gen1 resume
 再開:
 
 ```bash
-python -m training.train --run runs/gen1 --resume
+uv run python -m training.train --run runs/gen1 --resume
 ```
 
 `--resume` は引数をチェックポイントから全部読むので、実行ディレクトリだけ渡せばいい。一緒に渡した引数はそちらが優先されるので、学習率やステップ数を途中で変えるのもこれでできる。
@@ -147,9 +173,9 @@ python -m training.train --run runs/gen1 --resume
 **確かめ方**: 40ステップ通しで回したものと、20ステップで止めて再開して40ステップにしたものの重みを比べる。全パラメータで差が完全に0になる。
 
 ```bash
-python -m training.train --run a --data data/gen1.bin --steps 40 --batch-size 64
-python -m training.train --run b --data data/gen1.bin --steps 20 --batch-size 64
-python -m training.train --run b --resume --steps 40
+uv run python -m training.train --run a --data data/gen1.bin --steps 40 --batch-size 64
+uv run python -m training.train --run b --data data/gen1.bin --steps 20 --batch-size 64
+uv run python -m training.train --run b --resume --steps 40
 ```
 
 ここがずれる典型的な原因は「ループを抜ける前にバッチを1つ余計に取り出してしまう」こと。取り出した時点でデータローダの位置は進むので、チェックポイントは「学習していないバッチを学習済み」と記録し、再開した側はそれを飛ばす。`train.py` が停止条件を**バッチを取り出す前に**見ているのはこのため。
@@ -159,7 +185,7 @@ python -m training.train --run b --resume --steps 40
 **このフェーズで一番大事な検証**。量子化のバグはクラッシュしない。エンジンが少し弱くなるだけで、学習側からもエンジン側からも単独では気づけない。
 
 ```bash
-python -m training.verify --engine build-msvc/Release/luna-shougi.exe --net nets/gen1.nnue --sfen data/gen1.sfen
+uv run python -m training.verify --engine build-msvc/Release/luna-shougi.exe --net nets/gen1.nnue --sfen data/gen1.sfen
 ```
 
 同じ局面を両方に通して、点数が**完全に一致する**ことを見る。近い、ではなく一致。両方とも整数演算で、正当に丸めが違う余地はどこにもない。
@@ -167,7 +193,7 @@ python -m training.verify --engine build-msvc/Release/luna-shougi.exe --net nets
 学習済みネットワークがなくても走る:
 
 ```bash
-python -m training.verify --engine build-msvc/Release/luna-shougi.exe --random-net /tmp/x.nnue --sfen data/gen1.sfen
+uv run python -m training.verify --engine build-msvc/Release/luna-shougi.exe --random-net /tmp/x.nnue --sfen data/gen1.sfen
 ```
 
 乱数で作ったネットワークを書き出して確かめる。検証しているのは算術と特徴量の番号付けであって学習結果ではないので、これで十分。CIが毎pushで回しているのはこちら。**macOSのCIジョブはNEONカーネルをこれで検証している** — 開発機がx86なので、NEONに対する自動テストはこれしかない。
