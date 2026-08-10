@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from . import checkpoint, control, dataset, model as model_module, quantize
+from . import checkpoint, control, dataset, holdout as holdout_module, model as model_module, quantize
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -44,6 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--chunk-samples", type=int, default=1 << 20,
                         help="samples read at a time and shuffled together")
+
+    parser.add_argument("--val-data", nargs="+",
+                        help="held-out .bin files from a datagen run with a different --seed. "
+                             "Not a split of --data: positions from one game would land on "
+                             "both sides and the measurement would leak")
+    parser.add_argument("--val-samples", type=int, default=1 << 16,
+                        help="how many held-out samples to measure on")
+    parser.add_argument("--val-every", type=int, default=2000, help="steps between measurements")
 
     parser.add_argument("--save-every", type=int, default=2000, help="steps between checkpoints")
     parser.add_argument("--keep-every", type=int, default=50_000,
@@ -151,6 +159,12 @@ def main(argv: list[str]) -> int:
         checkpoint.restore_rng(state["rng"])
         step = state["step"]
 
+    holdout = None
+    if args.val_data:
+        holdout = holdout_module.Holdout(
+            args.val_data, args.batch_size, args.val_samples, to_device, device
+        )
+
     driver = control.Control(run_dir)
     # A leftover stop file from the run that just ended would stop this one on
     # its first step. Asking for a stop again is one command; noticing why a
@@ -163,6 +177,25 @@ def main(argv: list[str]) -> int:
         f"{len(loader.files):,} samples, {loader.batches_per_epoch():,} batches per epoch, "
         f"device {device}"
     )
+    if holdout is not None:
+        print(f"holdout: {holdout.count:,} samples from {', '.join(holdout.paths)}")
+    else:
+        print("no --val-data: the loss below is the training loss and says nothing about "
+              "unseen positions")
+
+    def log(record: dict) -> None:
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record) + "\n")
+
+    def validate() -> None:
+        if holdout is None:
+            return
+        record = {"step": step, **holdout.measure(net, args.lambda_score)}
+        print(
+            f"  holdout   val loss {record['val_loss']:.6f}  "
+            f"resid {record['val_resid']:.0f}  bias {record['val_bias']:+.0f}"
+        )
+        log(record)
 
     def snapshot() -> dict:
         return {
@@ -251,10 +284,12 @@ def main(argv: list[str]) -> int:
                 f"step {step:>8}  epoch {loader.epoch}  loss {average:.6f}  "
                 f"lr {record['lr']:.2e}  {rate:.1f} steps/s"
             )
-            with log_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(record) + "\n")
+            log(record)
             running_loss = 0.0
             running_count = 0
+
+        if step % args.val_every == 0:
+            validate()
 
         if step % args.save_every == 0:
             checkpoint.save(run_dir, snapshot(), keep_every=args.keep_every)
@@ -262,6 +297,11 @@ def main(argv: list[str]) -> int:
 
     checkpoint.save(run_dir, snapshot(), keep_every=args.keep_every)
     export_network()
+    # A last measurement whatever the step count landed on, so that a run that
+    # was stopped by hand still ends with a number that can be compared. Unless
+    # the loop just took one at this very step.
+    if step % args.val_every != 0:
+        validate()
 
     if stopped_early:
         print(f"stopped at step {step}. Carry on with:")

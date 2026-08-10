@@ -129,5 +129,5 @@ info string eval nnue -137 net D:\...\gen1.nnue (avx2)            # NNUE
 
 ## 積み残し
 
-- **`training/train.py` に検証lossが無い**。この記録の数字は全部あとから外で測ったもので、学習中のログからは何も分からなかった。訓練lossだけが1000分の1に落ちていくのを見て「成功した」と読める状態になっている。ホールドアウトを切って `--log-every` ごとに出すべき。
+- ~~**`training/train.py` に検証lossが無い**~~ → 入れた。`--val-data` で `val loss` と `val_resid` が2000ステップごとに出る。この記録の残差sd(手書き475、gen1が583)がそのまま学習中に見える数字になったので、**対局を待たずに失敗が分かる**。使い方は `docs/nnue.md` の「未知の局面で測る」。
 - `uv run python -m training.verify --help` が日本語WindowsのCP932コンソールで `UnicodeEncodeError`(ヘルプ文字列中の全角ダッシュ)。実行自体には影響しない。
