@@ -113,6 +113,8 @@ int8にスケール64を掛けると表現できるのは ±127/64 ≈ ±1.98 �
 | 6 | 0.54 M局面/時 | 約19時間 |
 | 8 | 0.13 M局面/時 | 約77時間 |
 
+**深さ4を選んではいけない**。生成時間を6時間に収めるために深さ4で1周回したが、出来上がったネットは手書き評価に固定深さ6で 1-399-0 だった。深さ4の探索スコアは手書き評価をそのまま4手伝播させたもので、蒸留しても手書き評価の劣化コピーにしかならない。記録と測定手順は `docs/nnue-gen1.md`。
+
 ### floodgateの棋譜から始める場合
 
 第1世代では使わないと決めたが、方法自体は残しておく。2世代目以降で自己対局データの偏りが見えてきたときに、混ぜずに別系統として比較する使い道がある。
@@ -238,10 +240,12 @@ info string eval nnue -137 net D:\nets\gen1.nnue (avx2)
 
 ```bash
 ./build-msvc/Release/luna-match.exe \
-  --engine ./build-msvc/Release/luna-shougi.exe --name nnue --option EvalFile=D:\nets\gen1.nnue \
+  --engine ./build-msvc/Release/luna-shougi.exe --name nnue --option EvalFile=D:/nets/gen1.nnue \
   --engine ./build-msvc/Release/luna-shougi.exe --name handmade \
   --games 400 --movetime 200 --concurrency 8
 ```
+
+**出力に `info string eval nnue ...` が出ていることを毎回確かめること**。`EvalFile` の読み込みに失敗したエンジンは手書き評価のまま対局を続けるので、失敗した測定は「手書き評価 対 手書き評価」= 勝率50%、つまり「有意差なし」という無害な顔で返ってくる。パスをスラッシュ区切りで書いてあるのは、bashが引用符の無いバックスラッシュを食うため。実際にこれで400局を無駄にした記録が `docs/nnue-gen1.md` にある。
 
 そのあとは `--eval-file` を付けて次の世代のデータを作る、の繰り返し。
 
