@@ -1,6 +1,9 @@
 #include "search/search.hpp"
 
+#include <atomic>
+#include <chrono>
 #include <string>
+#include <thread>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -211,4 +214,70 @@ TEST_CASE("NewGame clears what the previous game taught the search", "[search]")
   search.NewGame();
 
   REQUIRE(search.Tt().HashFull() == 0);
+}
+
+TEST_CASE("a search on several threads still finds the mate", "[search][smp]") {
+  luna::Position pos;
+  REQUIRE(pos.SetSfen(kMateInOne));
+  luna::Search search;
+  search.SetThreads(4);
+
+  const luna::SearchResult result = search.Think(pos, DepthLimit(4));
+
+  REQUIRE(search.Threads() == 4);
+  REQUIRE(luna::MateDistance(result.score) == 1);
+  REQUIRE(luna::ToUsi(result.best) == "5c5b");
+  // Every thread's nodes are counted, so the total is above what one alone
+  // would have needed.
+  REQUIRE(result.nodes > 0);
+}
+
+TEST_CASE("a search on several threads leaves the position alone", "[search][smp]") {
+  luna::Position pos;
+  const std::string before = pos.ToSfen();
+  luna::Search search;
+  search.SetThreads(4);
+
+  search.Think(pos, DepthLimit(6));
+
+  REQUIRE(pos.ToSfen() == before);
+  REQUIRE(pos.UndoableMoves() == 0);
+}
+
+TEST_CASE("the thread count is clamped to something a machine can run",
+          "[search][smp]") {
+  luna::Search search;
+
+  search.SetThreads(0);
+  REQUIRE(search.Threads() == 1);
+
+  search.SetThreads(-4);
+  REQUIRE(search.Threads() == 1);
+
+  search.SetThreads(luna::kMaxThreads + 100);
+  REQUIRE(search.Threads() == luna::kMaxThreads);
+}
+
+TEST_CASE("Stop ends a search that has no limit of its own", "[search][smp]") {
+  luna::Position pos;
+  luna::Search search;
+  luna::SearchLimits limits;
+  limits.infinite = true;
+
+  // The sink fires once the first iteration is done, which is proof that the
+  // search is under way and has already cleared its stop flag. Stopping before
+  // that would be cleared away and the search would never end.
+  std::atomic<bool> started{false};
+  search.SetInfoSink([&started](const std::string&) { started.store(true); });
+
+  std::thread stopper([&search, &started] {
+    while (!started.load()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    search.Stop();
+  });
+
+  const luna::SearchResult result = search.Think(pos, limits);
+  stopper.join();
+
+  REQUIRE(luna::movegen::IsLegal(pos, result.best));
+  REQUIRE(result.depth >= 1);
 }

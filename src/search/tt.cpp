@@ -25,23 +25,36 @@ int FromStorage(int value, int ply) {
   return value;
 }
 
+uint64_t Pack(uint16_t tag, uint16_t move, int16_t value, uint8_t depth, uint8_t gen_bound) {
+  return (static_cast<uint64_t>(tag) << 48) | (static_cast<uint64_t>(move) << 32) |
+         (static_cast<uint64_t>(static_cast<uint16_t>(value)) << 16) |
+         (static_cast<uint64_t>(depth) << 8) | gen_bound;
+}
+
+// Every access is relaxed. The table is a cache of results that can each be
+// recomputed, so a thread reading a slightly stale word costs at most the
+// search it saved; there is nothing here that another thread's write has to
+// happen-before.
+constexpr std::memory_order kOrder = std::memory_order_relaxed;
+
 }  // namespace
 
 void TranspositionTable::Resize(size_t mb) {
   mb = std::clamp<size_t>(mb, 1, kMaxSizeMb);
 
-  size_t count = (mb * 1024 * 1024) / sizeof(Entry);
+  size_t count = (mb * 1024 * 1024) / sizeof(uint64_t);
   size_t power_of_two = 1;
   while (power_of_two * 2 <= count) power_of_two *= 2;
   count = power_of_two;
 
-  entries_.assign(count, Entry{});
+  entries_ = std::vector<std::atomic<uint64_t>>(count);
   mask_ = count - 1;
   generation_ = 0;
+  Clear();
 }
 
 void TranspositionTable::Clear() {
-  std::fill(entries_.begin(), entries_.end(), Entry{});
+  for (std::atomic<uint64_t>& entry : entries_) entry.store(0, kOrder);
   generation_ = 0;
 }
 
@@ -50,36 +63,38 @@ void TranspositionTable::NewSearch() {
 }
 
 bool TranspositionTable::Probe(uint64_t key, int ply, TtProbe& out) const {
-  const Entry& e = entries_[key & mask_];
-  if (BoundOf(e) == Bound::kNone || e.key32 != static_cast<uint32_t>(key >> 32)) return false;
+  const uint64_t entry = entries_[key & mask_].load(kOrder);
+  if (BoundOf(entry) == Bound::kNone || TagOf(entry) != TagFor(key)) return false;
 
-  out.value = FromStorage(e.value, ply);
-  out.depth = e.depth;
-  out.move = Move::FromRaw(e.move);
-  out.bound = BoundOf(e);
+  out.value = FromStorage(ValueOf(entry), ply);
+  out.depth = DepthOf(entry);
+  out.move = Move::FromRaw(MoveOf(entry));
+  out.bound = BoundOf(entry);
   return true;
 }
 
 void TranspositionTable::Store(uint64_t key, int ply, int depth, int value, Bound bound,
                                Move move) {
-  Entry& e = entries_[key & mask_];
-  const uint32_t key32 = static_cast<uint32_t>(key >> 32);
+  std::atomic<uint64_t>& slot = entries_[key & mask_];
+  const uint64_t entry = slot.load(kOrder);
+  const uint16_t tag = TagFor(key);
+  const bool same = TagOf(entry) == tag && BoundOf(entry) != Bound::kNone;
 
   // Refresh our own entry unconditionally, take over slots left by an earlier
   // search, and otherwise only displace a shallower result from this search.
-  const bool replace = e.key32 == key32 || BoundOf(e) == Bound::kNone ||
-                       GenerationOf(e) != generation_ || depth >= e.depth;
+  const bool replace = same || BoundOf(entry) == Bound::kNone ||
+                       GenerationOf(entry) != generation_ ||
+                       depth >= static_cast<int>(DepthOf(entry));
   if (!replace) return;
 
   // A cutoff can come from a node whose best move was never established; keep
   // the previous move for this position rather than storing nothing.
-  if (move.IsNone() && e.key32 == key32) move = Move::FromRaw(e.move);
+  if (move.IsNone() && same) move = Move::FromRaw(MoveOf(entry));
 
-  e.key32 = key32;
-  e.move = move.Raw();
-  e.value = ToStorage(value, ply);
-  e.depth = static_cast<uint8_t>(std::clamp(depth, 0, 255));
-  e.gen_bound = static_cast<uint8_t>(generation_ | static_cast<uint8_t>(bound));
+  slot.store(Pack(tag, move.Raw(), ToStorage(value, ply),
+                  static_cast<uint8_t>(std::clamp(depth, 0, 255)),
+                  static_cast<uint8_t>(generation_ | static_cast<uint8_t>(bound))),
+             kOrder);
 }
 
 int TranspositionTable::HashFull() const {
@@ -88,8 +103,8 @@ int TranspositionTable::HashFull() const {
 
   size_t used = 0;
   for (size_t i = 0; i < sample; ++i) {
-    const Entry& e = entries_[i];
-    if (BoundOf(e) != Bound::kNone && GenerationOf(e) == generation_) ++used;
+    const uint64_t entry = entries_[i].load(kOrder);
+    if (BoundOf(entry) != Bound::kNone && GenerationOf(entry) == generation_) ++used;
   }
   return static_cast<int>(used * 1000 / sample);
 }

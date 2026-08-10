@@ -5,7 +5,10 @@
 namespace luna {
 
 TimeBudget ComputeTimeBudget(const SearchLimits& limits, Color us) {
-  if (limits.infinite) return {kInfiniteFallbackMs, kInfiniteFallbackMs};
+  // "go infinite" means what it says: the search runs until "stop" arrives.
+  // That only became true once the search moved off the command thread, which
+  // is what reads the "stop".
+  if (limits.infinite) return {};
 
   if (limits.movetime > 0) {
     const int64_t t = std::max<int64_t>(1, limits.movetime - kTimeOverheadMs);

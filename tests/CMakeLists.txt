@@ -15,6 +15,7 @@ add_executable(luna_tests
   test_perft.cpp
   test_position.cpp
   test_search.cpp
+  test_see.cpp
   test_timeman.cpp
   test_tt.cpp
   test_usi_engine.cpp

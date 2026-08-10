@@ -19,6 +19,10 @@ runs/
 __pycache__/
 *.pyc
 
+# uv builds this from pyproject.toml and uv.lock, both of which are tracked.
+# The CUDA torch inside it is 1.8GB.
+.venv/
+
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake

@@ -88,12 +88,13 @@ TEST_CASE("a nearly flat clock still leaves a positive budget", "[timeman]") {
   REQUIRE(budget.hard_ms >= 1);
 }
 
-TEST_CASE("go infinite is capped rather than left to run forever", "[timeman]") {
+TEST_CASE("go infinite sets no time limit at all", "[timeman]") {
   luna::SearchLimits limits;
   limits.infinite = true;
 
   const luna::TimeBudget budget = luna::ComputeTimeBudget(limits, luna::kBlack);
 
-  REQUIRE_FALSE(budget.Unlimited());
-  REQUIRE(budget.hard_ms == luna::kInfiniteFallbackMs);
+  // Nothing but "stop" ends an infinite search, which is only honest now that
+  // the search runs on its own thread and "stop" can arrive while it does.
+  REQUIRE(budget.Unlimited());
 }

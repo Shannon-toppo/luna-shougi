@@ -1,0 +1,38 @@
+[project]
+name = "luna-shougi-training"
+version = "0.1.0"
+description = "Training side of luna-shougi: NNUE data, training, quantization and verification."
+readme = "docs/nnue.md"
+# 3.13 is what the wheels below are built for. The upper bound is not
+# pessimism about 3.14, only a refusal to resolve against a Python that
+# PyTorch has not published a CUDA build for yet.
+requires-python = ">=3.11,<3.14"
+
+dependencies = [
+    "numpy>=1.24",
+    "torch>=2.13.0",
+]
+
+# The engine is C++ and this directory is not a Python distribution: uv is
+# here to manage versions, not to build and install anything. "python -m
+# training.train" works because the repository root is the working directory.
+[tool.uv]
+package = false
+
+# PyTorch is not on PyPI in a CUDA build. The wheel has to come from
+# PyTorch's own index, and which index decides which CUDA the binary carries.
+#
+# cu132 matches the driver on the training machine (RTX 4070 Ti, CUDA 13.2).
+# A cu130 wheel would also run — CUDA is compatible across a minor version —
+# but matching exactly means the question never has to be asked again. Change
+# this line and re-lock when the driver changes; nothing else needs to move.
+#
+# "explicit" keeps every other package coming from PyPI. Without it, uv would
+# be free to look for numpy here too and find an old copy.
+[tool.uv.sources]
+torch = { index = "pytorch-cu132" }
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true

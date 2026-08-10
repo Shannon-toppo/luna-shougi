@@ -1,13 +1,22 @@
-# The engine builds and runs without any of this. Only training needs it.
+# Not the primary way in. Versions are managed by uv, from the pyproject.toml
+# and uv.lock at the repository root:
 #
-# torch has to match the CUDA the driver provides. On the RTX 4070 Ti box that
-# is the cu128 wheel, which pip will not pick by itself:
+#   uv sync
+#   uv run python -m training.train ...
 #
-#   pip install torch --index-url https://download.pytorch.org/whl/cu128
-#   pip install -r training/requirements.txt
+# That is what pins the CUDA build of torch, which PyPI does not carry. This
+# file is kept for the two cases uv is not wanted for:
 #
-# On a machine with no CUDA, plain "pip install torch" gives the CPU build,
-# which is enough to run the tests and training/verify.py but far too slow to
-# train a net with.
+#   - CI, which only runs training/verify.py and so only needs numpy. There is
+#     no reason for a 1.8GB torch wheel on every push.
+#   - a plain pip environment, where the CUDA wheel has to be asked for by
+#     hand or the CPU build turns up instead and training silently runs on the
+#     wrong device:
+#
+#       pip install torch --index-url https://download.pytorch.org/whl/cu132
+#       pip install -r training/requirements.txt
+#
+# cu132 matches the driver on the training machine; docs/nnue.md says how to
+# check that it took.
 numpy>=1.24
-torch>=2.0
+torch>=2.13.0
