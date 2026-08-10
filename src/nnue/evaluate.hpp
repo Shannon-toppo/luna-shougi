@@ -11,10 +11,13 @@ namespace luna::nnue {
 // it.
 //
 // One network, shared; one accumulator cache per thread, held in thread-local
-// storage. Loading is only safe while no search is running, which for now is
-// always true because the search runs inside the USI command handler. When
-// phase 6 puts the search on its own thread, loading has to happen between
-// searches, the same way the transposition table is resized.
+// storage. The per-thread cache is what makes the Lazy SMP search safe here:
+// several threads evaluate at once and none of them touch each other's
+// accumulators.
+//
+// Loading is only safe while no search is running, the same as resizing the
+// transposition table. The USI layer enforces that by stopping the search
+// before it acts on any "setoption".
 
 // Replaces the network. On failure the previous one is dropped and `error`
 // says why.

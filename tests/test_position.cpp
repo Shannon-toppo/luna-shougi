@@ -236,3 +236,47 @@ TEST_CASE("a repetition after a capture is still found", "[position][repetition]
   REQUIRE(pos.Key() == after_capture);
   REQUIRE(pos.IsRepetition());
 }
+
+TEST_CASE("a null move changes the side to move and nothing else", "[position]") {
+  Position pos = FromSfen("ln1gkg1nl/2r2s1p1/pp1s1p2p/2p1PbPR1/3pp4/2P6/PP1P1P2P/1BS1KS3/LN1G1G1NL b Pp 29");
+  const std::string before = pos.ToSfen();
+  const uint64_t key = pos.Key();
+
+  pos.DoNullMove();
+
+  REQUIRE(pos.SideToMove() == luna::kWhite);
+  REQUIRE(pos.Key() != key);
+  // The incremental key has to agree with one computed from scratch, which is
+  // what says the side-to-move term was the only thing touched.
+  REQUIRE(pos.Key() == pos.ComputeKey());
+
+  pos.UndoNullMove();
+
+  REQUIRE(pos.ToSfen() == before);
+  REQUIRE(pos.Key() == key);
+  REQUIRE(pos.Key() == pos.ComputeKey());
+}
+
+TEST_CASE("a null move is invisible to the move history", "[position]") {
+  // Incremental evaluation replays the history to work out what moved. A null
+  // move moves nothing, so it must not appear there at all: a move played
+  // after one has to look exactly like a move played without one.
+  Position pos;
+  pos.DoMove(MoveFromUsi("7g7f"));
+  const std::string after_one_move = pos.ToSfen();
+  const int played = pos.UndoableMoves();
+
+  pos.DoNullMove();
+  REQUIRE(pos.UndoableMoves() == played);
+
+  // Black moves again, because the null move handed the turn back.
+  pos.DoMove(MoveFromUsi("2g2f"));
+  REQUIRE(pos.UndoableMoves() == played + 1);
+  REQUIRE(pos.UndoAt(played).move == MoveFromUsi("2g2f"));
+
+  pos.UndoMove();
+  pos.UndoNullMove();
+
+  REQUIRE(pos.ToSfen() == after_one_move);
+  REQUIRE(pos.Key() == pos.ComputeKey());
+}

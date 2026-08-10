@@ -22,6 +22,10 @@ option(LUNA_BUILD_TESTS "Build unit tests" ON)
 # are always compiled in and the engine will simply evaluate more slowly.
 option(LUNA_ENABLE_AVX2 "Compile with AVX2 on x86-64" ON)
 
+# The search itself is multi-threaded (Lazy SMP), so the engine library needs
+# a thread implementation, not only the tools that drive several engines.
+find_package(Threads REQUIRED)
+
 add_library(luna_engine
   src/core/attacks.cpp
   src/core/move.cpp
@@ -35,12 +39,15 @@ add_library(luna_engine
   src/search/eval.cpp
   src/search/pst.cpp
   src/search/search.cpp
+  src/search/see.cpp
   src/search/timeman.cpp
   src/search/tt.cpp
+  src/engine/bench.cpp
   src/engine/usi_engine.cpp
 )
 target_include_directories(luna_engine PUBLIC src)
 target_compile_features(luna_engine PUBLIC cxx_std_20)
+target_link_libraries(luna_engine PUBLIC Threads::Threads)
 
 if(LUNA_ENABLE_AVX2 AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|AMD64|amd64)")
   if(MSVC)
@@ -55,8 +62,6 @@ target_link_libraries(luna-shougi PRIVATE luna_engine)
 
 # The self-play measurement tool. It reuses luna_engine as the arbiter so that
 # the rules it judges games by are the same code the engine plays by.
-find_package(Threads REQUIRED)
-
 add_library(luna_match
   src/match/arbiter.cpp
   src/match/elo.cpp

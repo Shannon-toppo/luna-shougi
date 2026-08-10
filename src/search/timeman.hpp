@@ -40,11 +40,6 @@ constexpr int kMovesToGo = 40;
 // "go" with no limit at all still has to return a move.
 constexpr int64_t kNoClockDefaultMs = 1000;
 
-// There is no search thread yet, so "stop" cannot interrupt a search in
-// flight and "go infinite" would never return. Capping it keeps the GUI
-// usable; real infinite analysis waits for the phase 6 threaded search.
-constexpr int64_t kInfiniteFallbackMs = 30000;
-
 TimeBudget ComputeTimeBudget(const SearchLimits& limits, Color us);
 
 }  // namespace luna

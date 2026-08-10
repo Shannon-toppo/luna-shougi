@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -23,10 +24,21 @@ struct TtProbe {
   Bound bound = Bound::kNone;
 };
 
-// One entry per slot, indexed by the low bits of the Zobrist key. Entries are
-// verified against the high 32 bits of the key, which is not a proof of
-// identity: callers must treat a probed move as a hint and check it against
-// generated moves before playing it.
+// One entry per slot, indexed by the low bits of the Zobrist key and verified
+// against its high 16 bits.
+//
+// Sixteen bits of tag is not a proof of identity, and neither was the 32 the
+// table used to carry: callers must treat a probed move as a hint and check it
+// against generated moves before playing it. What sixteen buys is that the
+// whole entry fits in one 64-bit word, which is what makes the table safe to
+// share between search threads without a lock. A reader always sees a whole
+// entry, never a key from one position with a score from another. Two
+// positions landing on the same slot with the same tag stay possible, at
+// roughly one probe in 65536 of the ones that collide at all, and the search
+// carries that risk the way every engine does.
+//
+// Stores race with each other and the loser is simply overwritten. Nothing is
+// lost that another search will not find again.
 class TranspositionTable {
  public:
   static constexpr size_t kDefaultSizeMb = 64;
@@ -36,6 +48,8 @@ class TranspositionTable {
 
   // Rounds the entry count down to a power of two and clears the table. Sizes
   // below one entry's worth are rounded up to a single entry.
+  //
+  // Not safe while a search is running.
   void Resize(size_t mb);
   void Clear();
 
@@ -56,23 +70,30 @@ class TranspositionTable {
   size_t EntryCount() const { return entries_.size(); }
 
  private:
-  struct Entry {
-    uint32_t key32 = 0;
-    uint16_t move = 0;
-    int16_t value = 0;
-    uint8_t depth = 0;
-    uint8_t gen_bound = 0;  // generation in the high 6 bits, Bound in the low 2
-  };
-
+  // The packed entry, low bits first:
+  //
+  //   bits  0-7   generation in the high 6 bits, Bound in the low 2
+  //   bits  8-15  depth
+  //   bits 16-31  value
+  //   bits 32-47  move
+  //   bits 48-63  tag, the high 16 bits of the Zobrist key
+  //
+  // An all-zero word has Bound::kNone and so reads as empty.
   static constexpr uint8_t kBoundMask = 3;
   static constexpr uint8_t kGenerationStep = 4;
 
-  static Bound BoundOf(const Entry& e) { return static_cast<Bound>(e.gen_bound & kBoundMask); }
-  static uint8_t GenerationOf(const Entry& e) {
-    return static_cast<uint8_t>(e.gen_bound & ~kBoundMask);
+  static uint16_t TagOf(uint64_t e) { return static_cast<uint16_t>(e >> 48); }
+  static uint16_t MoveOf(uint64_t e) { return static_cast<uint16_t>(e >> 32); }
+  static int16_t ValueOf(uint64_t e) { return static_cast<int16_t>(e >> 16); }
+  static uint8_t DepthOf(uint64_t e) { return static_cast<uint8_t>(e >> 8); }
+  static Bound BoundOf(uint64_t e) { return static_cast<Bound>(e & kBoundMask); }
+  static uint8_t GenerationOf(uint64_t e) {
+    return static_cast<uint8_t>(static_cast<uint8_t>(e) & ~kBoundMask);
   }
 
-  std::vector<Entry> entries_;
+  static uint16_t TagFor(uint64_t key) { return static_cast<uint16_t>(key >> 48); }
+
+  std::vector<std::atomic<uint64_t>> entries_;
   size_t mask_ = 0;
   uint8_t generation_ = 0;
 };

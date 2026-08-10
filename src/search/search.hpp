@@ -1,9 +1,10 @@
 #pragma once
 
-#include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,10 @@ constexpr int kMaxDepth = 64;
 
 // Scores beyond this magnitude encode a forced mate rather than material.
 constexpr int kMateInMaxPly = eval::kMate - kMaxPly;
+
+// More threads than this is not a machine anyone is playing shogi on, and the
+// option has to have an upper bound to advertise.
+constexpr int kMaxThreads = 128;
 
 constexpr bool IsMateScore(int score) {
   return score > kMateInMaxPly || score < -kMateInMaxPly;
@@ -49,71 +54,84 @@ struct SearchResult {
 // Alpha-beta with iterative deepening, a transposition table, quiescence
 // search and MVV-LVA / killer / history move ordering.
 //
-// Single threaded and synchronous: Think runs to completion before returning,
-// so "stop" cannot interrupt it. Time management is what ends a search.
+// The window is narrowed by principal variation search and the tree is cut
+// down by null move pruning, reverse futility, futility and late move pruning
+// of quiet moves, late move reductions, and SEE and delta pruning in
+// quiescence. All of them can be wrong about a move; what keeps that
+// affordable is that a mistake costs strength rather than correctness, and
+// that the ones near the leaves are the ones that prune the most.
+//
+// Think searches with `Threads()` threads, sharing the transposition table and
+// nothing else. This is Lazy SMP: the helper threads are not given part of the
+// tree to search, they search the same tree from a different depth and at
+// their own speed, and the work they save the main thread arrives through the
+// table. It scales worse than a real parallel search and is a fraction of the
+// code, which is the trade every engine of this size makes.
+//
+// Think blocks until the search is over. Stop is what ends it early, and it is
+// the one member safe to call from another thread while a search runs.
 class Search {
  public:
   // Called with one complete "info ..." line per finished iteration.
   using InfoSink = std::function<void(const std::string&)>;
 
   Search();
+  ~Search();
+  Search(const Search&) = delete;
+  Search& operator=(const Search&) = delete;
 
   void SetInfoSink(InfoSink sink) { info_sink_ = std::move(sink); }
 
   TranspositionTable& Tt() { return tt_; }
 
+  // Threads Think searches with, the calling one included. Clamped to
+  // [1, kMaxThreads]. Not safe to call while a search is running.
+  void SetThreads(int count);
+  int Threads() const { return static_cast<int>(workers_.size()); }
+
   // Drops everything carried over from the previous game.
   void NewGame();
 
+  // Searches `pos`, which is only read: each thread works on its own copy.
   SearchResult Think(Position& pos, const SearchLimits& limits);
 
+  // Asks a running search to finish early. Safe to call from any thread. The
+  // move that comes back is whatever the search had settled on, which is
+  // always a legal one.
+  //
+  // A stop asked for before the search starts is honoured, not lost: Think
+  // does not clear the flag on the way in. That matters because a GUI is
+  // entitled to send "stop" the instant after "go", which can easily arrive
+  // before the search thread has reached Think at all. Think clears the flag
+  // on the way out instead, so the next search starts clean.
+  void Stop() { stop_.store(true, std::memory_order_relaxed); }
+
+  // Drops a stop request that no search consumed, which happens when one is
+  // asked to stop after it had already finished on its own. Call it before
+  // starting a search on another thread; calling it after that thread exists
+  // would reintroduce the race it is here to avoid.
+  void ClearStop() { stop_.store(false, std::memory_order_relaxed); }
+
  private:
-  // Per-ply scratch space. Kept off the call stack: a MoveList plus its scores
-  // is over 6KB, and kMaxPly of those would not fit in a thread's stack.
-  struct Node {
-    MoveList moves;
-    std::array<int, kMaxMoves> scores{};
-    std::array<Move, 2> killers{};
-  };
+  // One thread's worth of search: its own position, move stacks, killers,
+  // history and node count. Defined in the source file, because nothing
+  // outside the search has any business with it.
+  class Worker;
 
-  // Drops use kSquareNb + piece type as their origin index.
-  static constexpr int kHistoryOriginNb = kSquareNb + kPieceTypeNb;
-
-  int AlphaBeta(Position& pos, int depth, int alpha, int beta, int ply);
-  int Quiescence(Position& pos, int alpha, int beta, int ply);
-
-  void ScoreMoves(const Position& pos, int ply, Move tt_move);
-
-  // Moves the highest scoring of the moves from `index` onwards into `index`
-  // and returns it. Ordering the tail lazily costs nothing when a cutoff comes
-  // early, which is the common case.
-  Move PickMove(int ply, int index);
-
-  void UpdateKillers(int ply, Move m);
-  void UpdateHistory(Color us, Move m, int depth);
-  int& HistoryOf(Color us, Move m);
-
-  void UpdatePv(int ply, Move m);
-
-  bool ShouldStop();
   int64_t ElapsedMs() const;
+  int64_t TotalNodes() const;
   std::string BuildInfoLine(const SearchResult& result) const;
 
   TranspositionTable tt_;
   InfoSink info_sink_;
-  std::vector<Node> stack_;
-  std::vector<int> history_;
-  // Triangular PV table. One extra ply so that a node at the deepest ply can
-  // still read its (always empty) child entry.
-  std::array<std::array<Move, kMaxPly>, kMaxPly + 1> pv_{};
-  std::array<int, kMaxPly + 1> pv_length_{};
+  std::vector<std::unique_ptr<Worker>> workers_;
 
+  // Shared by every worker for the length of one search, and written only
+  // before the workers start.
   SearchLimits limits_;
   TimeBudget budget_;
   std::chrono::steady_clock::time_point start_;
-  int64_t node_count_ = 0;
-  int seldepth_ = 0;
-  bool stop_ = false;
+  std::atomic<bool> stop_{false};
 };
 
 }  // namespace luna

@@ -218,19 +218,22 @@ TEST_CASE("byoyomi bounds how long go takes", "[usi][go]") {
   REQUIRE(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() < 3000);
 }
 
-TEST_CASE("Run streams info lines as the search produces them", "[usi][go]") {
+TEST_CASE("quit during a search ends it and still answers the go", "[usi][go]") {
+  // "go" no longer holds the command loop, so the "quit" behind it arrives
+  // while the search is still running. Quitting has to cut the search short
+  // rather than wait for it, and the search still owes the GUI a bestmove on
+  // its way out. A depth this large would take far longer than the bound.
   luna::UsiEngine engine;
-  std::istringstream in("position startpos\ngo depth 3\nquit\n");
+  std::istringstream in("position startpos\ngo depth 30\nquit\n");
   std::ostringstream out;
 
+  const auto start = std::chrono::steady_clock::now();
   engine.Run(in, out);
-  const std::string output = out.str();
+  const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  const size_t info = output.find("info depth 1");
-  const size_t bestmove = output.find("bestmove ");
-  REQUIRE(info != std::string::npos);
-  REQUIRE(bestmove != std::string::npos);
-  REQUIRE(info < bestmove);
+  REQUIRE(out.str().find("bestmove ") != std::string::npos);
+  REQUIRE(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() < 3000);
+  REQUIRE(engine.ShouldQuit());
 }
 
 TEST_CASE("usinewgame resets the position and the search", "[usi]") {
@@ -242,4 +245,63 @@ TEST_CASE("usinewgame resets the position and the search", "[usi]") {
 
   luna::Position pos;
   REQUIRE(luna::movegen::IsLegal(pos, luna::MoveFromUsi(bestmove)));
+}
+
+TEST_CASE("usi advertises the thread count option", "[usi][options]") {
+  luna::UsiEngine engine;
+  const auto response = engine.HandleCommand("usi");
+
+  bool found = false;
+  for (const std::string& line : response) {
+    if (line.rfind("option name Threads type spin", 0) == 0) found = true;
+  }
+  REQUIRE(found);
+}
+
+TEST_CASE("a search on several threads still returns a legal move", "[usi][go]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("setoption name Threads value 4");
+  engine.HandleCommand("position startpos");
+
+  const std::string bestmove = BestmoveOf(engine.HandleCommand("go depth 6"));
+
+  luna::Position pos;
+  REQUIRE(luna::movegen::IsLegal(pos, luna::MoveFromUsi(bestmove)));
+}
+
+TEST_CASE("an unreadable thread count leaves the engine working", "[usi][options]") {
+  luna::UsiEngine engine;
+  engine.HandleCommand("setoption name Threads value plenty");
+  engine.HandleCommand("position startpos");
+
+  REQUIRE(BestmoveOf(engine.HandleCommand("go depth 2")).size() >= 4);
+}
+
+TEST_CASE("stop ends an infinite search", "[usi][go]") {
+  // Without a search thread this would never return: "go infinite" has no
+  // limit of its own and the "stop" behind it would never be read.
+  luna::UsiEngine engine;
+  std::istringstream in("position startpos\ngo infinite\nstop\nquit\n");
+  std::ostringstream out;
+
+  engine.Run(in, out);
+
+  REQUIRE(out.str().find("bestmove ") != std::string::npos);
+}
+
+TEST_CASE("commands are answered while a search is running", "[usi][go]") {
+  // A GUI uses "isready" to check the engine is alive, including mid-search.
+  // The reply has to come out before the search is over, not after it.
+  luna::UsiEngine engine;
+  std::istringstream in("position startpos\ngo infinite\nisready\nstop\nquit\n");
+  std::ostringstream out;
+
+  engine.Run(in, out);
+
+  const std::string text = out.str();
+  const size_t ready = text.find("readyok");
+  const size_t bestmove = text.find("bestmove ");
+  REQUIRE(ready != std::string::npos);
+  REQUIRE(bestmove != std::string::npos);
+  REQUIRE(ready < bestmove);
 }

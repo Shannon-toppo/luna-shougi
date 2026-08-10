@@ -81,6 +81,18 @@ class Position {
   void DoMove(Move m);
   void UndoMove();
 
+  // Passes the turn. Nothing but the side to move changes, which is not a
+  // legal thing to do in a game: the search uses it to ask what the opponent
+  // would do with a free move. Illegal while in check, where the answer would
+  // be "capture the king".
+  //
+  // Deliberately not recorded in the move history, so UndoNullMove rather than
+  // UndoMove takes it back. A null move changes no piece and no hand, so
+  // incremental evaluation, which replays the history to work out what moved,
+  // stays correct without ever being told one happened.
+  void DoNullMove();
+  void UndoNullMove();
+
   // Recomputes the Zobrist key from scratch; used to verify incremental updates.
   uint64_t ComputeKey() const;
 

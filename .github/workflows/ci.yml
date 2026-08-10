@@ -35,9 +35,10 @@ jobs:
       - name: Install numpy
         run: pip install numpy
 
-      # A tight node cap rather than depth alone. Depth does not bound the
-      # work: quiescence is unpruned, and one middlegame position at depth 3
-      # costs 355k nodes against 2.5k for the starting position.
+      # A node cap as well as a depth. Phase 6 stopped quiescence from
+      # exploding, so the cap is no longer what keeps this step from taking
+      # minutes, but depth still does not bound the work and a runner that
+      # ends up on a slow machine should not stall the whole build.
       - name: Generate positions
         run: ./build/Release/luna-datagen.exe --out ci.bin --sfen-out ci.sfen --games 6 --depth 4 --nodes 30000 --maxply 80 --concurrency 2
 

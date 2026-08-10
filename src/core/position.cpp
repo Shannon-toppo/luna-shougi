@@ -300,4 +300,16 @@ void Position::UndoMove() {
   if (TypeOf(moved) == kKing) king_[us] = m.From();
 }
 
+void Position::DoNullMove() {
+  side_ = Opponent(side_);
+  key_ ^= zobrist::Keys().side;
+  ++ply_;
+}
+
+void Position::UndoNullMove() {
+  side_ = Opponent(side_);
+  key_ ^= zobrist::Keys().side;
+  --ply_;
+}
+
 }  // namespace luna
