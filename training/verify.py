@@ -6,7 +6,7 @@
 The two sides of this project compute the same network twice: once in Python
 with numpy, once in C++ with AVX2 or NEON. If they disagree, everything
 measured during training was measured on a network that is not the one
-playing, and neither side can tell on its own — a quantization bug does not
+playing, and neither side can tell on its own: a quantization bug does not
 crash, it just makes the engine a bit worse than the trainer thought.
 
 So: the same positions through both, and the scores have to be identical. Not
