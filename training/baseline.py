@@ -24,6 +24,11 @@ quantization and the engine's integer arithmetic, so the two agreeing is a
 check that nothing was lost on the way out. training/verify.py is the strict
 form of that check; this is the one that says whether it mattered.
 
+Both of those are residuals against a label, which is a spread, and a spread
+is nearly blind to a constant offset between the model and the network: gen1
+scored 604 here against 600 in training while the two sat 34.6 points apart.
+training/drift.py measures that offset directly.
+
 numpy only, no torch: the labels come out of the .bin and the scores come out
 of the engine.
 """
