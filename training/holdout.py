@@ -11,12 +11,25 @@ Two numbers come out of here:
     trained on. Comparable to the training loss printed beside it.
 
   - `val_resid`, the standard deviation of (predicted score - label score) in
-    the engine's own units. This one is comparable to something outside the
-    training run: training/baseline.py puts the hand-written evaluation on the
-    same holdout, and a network that cannot beat what it scores is not worth
-    the 3.3x it costs the search to run. The pass mark belongs to a depth --
-    473 on depth-4 data -- so measure it again whenever the datagen depth
-    changes.
+    the engine's own units, over the positions where the evaluation still
+    decides the game. This one is comparable to something outside the training
+    run: training/baseline.py puts the hand-written evaluation on the same
+    holdout, and a network that cannot beat what it scores is not worth the
+    3.3x it costs the search to run. The pass mark belongs to a depth and to a
+    holdout, so measure it again whenever either changes.
+
+`val_resid` covers |label| < 600 rather than everything, and the second
+generation is why. The loss trains on win rates through sigmoid(score / 600),
+which says outright that +1500 and +3000 are the same position to play, so a
+network trained on it compresses the top of its range on purpose. A residual
+over every position is then mostly a measurement of the part the training was
+told to ignore: on depth-6 data a third of a holdout sits past 1200, and by
+that number gen2 scored 618 against the hand-written evaluation's 484 and read
+as a failure. Split by size it beat that evaluation in every band below 1200
+-- 305 against 327, 357 against 504, 473 against 572 -- and lost only where
+both sides are already winning. `val_resid_all` is still reported, because a
+network whose compression is running down into the deciding range should be
+visible somewhere.
 
 The holdout has to come from its own datagen run with a different --seed.
 Splitting one file would put positions from the same game on both sides, and
@@ -37,7 +50,9 @@ from typing import Callable, Sequence
 import numpy as np
 import torch
 
-from . import dataset, model as model_module
+from . import baseline, dataset, model as model_module
+
+DECIDING = baseline.DECIDING
 
 
 def _blocks(total: int, wanted: int, count: int = 16) -> list[tuple[int, int]]:
@@ -103,6 +118,9 @@ class Holdout:
         total_n = 0
         square_sum = 0.0
         error_sum = 0.0
+        deciding_square = 0.0
+        deciding_sum = 0.0
+        deciding_n = 0
         for black, white, stm, score, result in self.batches:
             prediction = net(black, white, stm)
             loss = model_module.loss(prediction, score, result, stm, lambda_score)
@@ -111,21 +129,33 @@ class Holdout:
             # predicts it divided by the ponanza constant. Undo that and the
             # residual is in the engine's units, where a pawn is 90.
             sign = 1.0 - 2.0 * stm
-            error = prediction * model_module.PONANZA_CONSTANT - score * sign
+            label = score * sign
+            error = prediction * model_module.PONANZA_CONSTANT - label
+
+            near = error[label.abs() < DECIDING]
 
             n = len(stm)
             total_loss += float(loss) * n
             total_n += n
             error_sum += float(error.sum())
             square_sum += float((error * error).sum())
+            deciding_n += len(near)
+            deciding_sum += float(near.sum())
+            deciding_square += float((near * near).sum())
         if was_training:
             net.train()
 
-        mean = error_sum / total_n
-        variance = max(0.0, square_sum / total_n - mean * mean)
+        def sd(square: float, total: float, n: int) -> float:
+            if n == 0:
+                return float("nan")
+            mean = total / n
+            return max(0.0, square / n - mean * mean) ** 0.5
+
         return {
             "val_loss": total_loss / total_n,
-            "val_resid": variance**0.5,
-            "val_bias": mean,
+            "val_resid": sd(deciding_square, deciding_sum, deciding_n),
+            "val_resid_all": sd(square_sum, error_sum, total_n),
+            "val_bias": error_sum / total_n,
             "val_samples": total_n,
+            "val_deciding": deciding_n,
         }

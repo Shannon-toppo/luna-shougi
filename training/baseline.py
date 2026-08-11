@@ -50,18 +50,41 @@ def spread(total: int, wanted: int) -> np.ndarray:
     return np.linspace(0, total - 1, wanted).astype(np.int64)
 
 
+# Where a residual is worth measuring. The loss trains on win rates through
+# sigmoid(score / 600), which is a deliberate statement that +1500 and +3000
+# are the same position to play; a network trained that way compresses the top
+# of its range on purpose. A single residual over every position is therefore
+# mostly a measurement of the part the training was told to ignore -- on
+# depth-6 data a third of the holdout sits past 1200 -- and it ranks a network
+# below the evaluation it beats everywhere a game is still undecided.
+BANDS = ((0, 300), (300, 600), (600, 1200), (1200, None))
+
+# The band the pass mark is read from: close enough that the evaluation still
+# decides the game, wide enough to be most of the holdout.
+DECIDING = 600
+
+
 def statistics(predicted: np.ndarray, label: np.ndarray) -> dict:
     error = predicted - label
     predicted_sd = float(predicted.std())
     label_sd = float(label.std())
     covariance = float(((predicted - predicted.mean()) * (label - label.mean())).mean())
+    deciding = np.abs(label) < DECIDING
     return {
         "n": len(label),
         "corr": covariance / (predicted_sd * label_sd) if predicted_sd and label_sd else math.nan,
         "resid": float(error.std()),
+        "resid_deciding": float(error[deciding].std()),
+        "n_deciding": int(deciding.sum()),
         "bias": float(error.mean()),
         "predicted_sd": predicted_sd,
         "label_sd": label_sd,
+        "bands": [
+            (lo, hi, int(mask.sum()), float(error[mask].std()))
+            for lo, hi in BANDS
+            for mask in [(np.abs(label) >= lo) & (np.abs(label) < (hi if hi else np.inf))]
+            if mask.any()
+        ],
     }
 
 
@@ -109,9 +132,16 @@ def main(argv: list[str]) -> int:
     result = statistics(predicted, label)
     print(f"{kind} evaluation on {result['n']:,} held-out positions from {args.data}")
     print(f"  corr with label   {result['corr']:+.3f}")
-    print(f"  resid sd          {result['resid']:.0f}   <- the number to beat")
     print(f"  bias              {result['bias']:+.0f}")
     print(f"  spread            predicted {result['predicted_sd']:.0f}, label {result['label_sd']:.0f}")
+    print("  resid sd by |label|:")
+    for lo, hi, n, sd in result["bands"]:
+        band = f"{lo}-{hi}" if hi else f"{lo}+"
+        print(f"    {band:>10} {n:>6}  {sd:>6.0f}")
+    print(f"  resid sd, |label| < {DECIDING}   {result['resid_deciding']:.0f}"
+          f"   <- the number to beat ({result['n_deciding']:,} positions)")
+    print(f"  resid sd, everything      {result['resid']:.0f}"
+          f"   (dominated by the band the loss ignores)")
     return 0
 
 

@@ -193,7 +193,8 @@ def main(argv: list[str]) -> int:
         record = {"step": step, **holdout.measure(net, args.lambda_score)}
         print(
             f"  holdout   val loss {record['val_loss']:.6f}  "
-            f"resid {record['val_resid']:.0f}  bias {record['val_bias']:+.0f}"
+            f"resid {record['val_resid']:.0f} (deciding) {record['val_resid_all']:.0f} (all)  "
+            f"bias {record['val_bias']:+.0f}"
         )
         log(record)
 
