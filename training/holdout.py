@@ -12,10 +12,11 @@ Two numbers come out of here:
 
   - `val_resid`, the standard deviation of (predicted score - label score) in
     the engine's own units. This one is comparable to something outside the
-    training run: put the hand-written evaluation on the same holdout and it
-    scores 475 at depth 4. A network that cannot beat that number is not worth
-    the 3.3x it costs the search to run, and there is no reason to spend half
-    an hour on a match to find that out.
+    training run: training/baseline.py puts the hand-written evaluation on the
+    same holdout, and a network that cannot beat what it scores is not worth
+    the 3.3x it costs the search to run. The pass mark belongs to a depth --
+    473 on depth-4 data -- so measure it again whenever the datagen depth
+    changes.
 
 The holdout has to come from its own datagen run with a different --seed.
 Splitting one file would put positions from the same game on both sides, and
@@ -80,14 +81,19 @@ class Holdout:
         # the transfer is worth doing once. `to_device` is train.py's own, so
         # the holdout cannot drift from the training path in how it reads a
         # record.
+        # Every sample is used, short last batch included. The training loader
+        # drops its remainder because a step on a short batch is a step with a
+        # different amount of gradient in it; here there is no step, the loss
+        # is averaged by sample count, and dropping the tail would only mean
+        # measuring on less. It also keeps a holdout smaller than one training
+        # batch -- 60 games is about 7000 samples, the default batch is 8192 --
+        # from being refused outright.
         self.batches = [
-            to_device(dataset.to_batch(raw[at : at + batch_size]), device)
-            for at in range(0, self.count - batch_size + 1, batch_size)
+            to_device(dataset.to_batch(raw[at : min(at + batch_size, self.count)]), device)
+            for at in range(0, self.count, batch_size)
         ]
         if not self.batches:
-            raise ValueError(
-                f"holdout has {self.count} samples, fewer than one batch of {batch_size}"
-            )
+            raise ValueError(f"{', '.join(self.paths)}: no samples to measure on")
 
     @torch.no_grad()
     def measure(self, net: torch.nn.Module, lambda_score: float) -> dict:
