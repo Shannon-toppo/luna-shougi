@@ -20,18 +20,21 @@ import numpy as np
 from . import features
 
 FILE_MAGIC = b"LUNANNUE"
-# 2 since PONANZA_CONSTANT changed. The layout is untouched, so a version 1
-# file would read cleanly and be wrong by a factor of three.
-FILE_VERSION = 2
+# Still 1. PONANZA_CONSTANT changing is not a format change: it is folded into
+# the output layer's weights and biases here, and the engine divides by
+# FV_SCALE either way. The version is for the layout.
+FILE_VERSION = 1
 HEADER_BYTES = 32
 
 ACTIVATION_SCALE = 127
 WEIGHT_SCALE_BITS = 6
 WEIGHT_SCALE = 1 << WEIGHT_SCALE_BITS
 HIDDEN_BIAS_SCALE = ACTIVATION_SCALE * WEIGHT_SCALE  # 8128
-# Kept in step with kPonanzaConstant in src/nnue/network.hpp, which is where
-# the reasoning for the value is written down. training/verify.py is what
-# catches the two drifting apart.
+# Engine points per unit of the network's output. This is a trainer-side
+# choice and the engine never sees it: it is folded into the output layer
+# below, so a network built at any value scores correctly through the same
+# code. Keep it in step with training/model.py, which is where the loss uses
+# it and where the reasoning for the value is written down.
 PONANZA_CONSTANT = 1800
 FV_SCALE = 16
 OUTPUT_BIAS_SCALE = PONANZA_CONSTANT * FV_SCALE  # 28800
