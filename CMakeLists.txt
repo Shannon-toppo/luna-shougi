@@ -37,6 +37,7 @@ add_library(luna_engine
   src/nnue/features.cpp
   src/nnue/network.cpp
   src/search/eval.cpp
+  src/search/evaldump.cpp
   src/search/pst.cpp
   src/search/search.cpp
   src/search/see.cpp

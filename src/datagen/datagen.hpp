@@ -61,6 +61,16 @@ struct Config {
   // Ctrl+C does the same. Either way the output stays usable and --append
   // picks up from there.
   std::string stop_file;
+
+  // Positions to label instead of self-playing, one SFEN per line. Set, and
+  // `games`, `opening_plies`, `seed` and `max_ply` are all unused: there are
+  // no games, only the positions in this file, each searched once at `depth`
+  // and written out with the score that came back.
+  //
+  // This is what turns a search dump (src/search/evaldump.hpp) into something
+  // training/baseline.py can read. Self-play cannot do it, because the whole
+  // point of the dump is that it holds positions no self-play game reaches.
+  std::string label_path;
 };
 
 struct Report {
@@ -71,6 +81,12 @@ struct Report {
   int64_t draws = 0;
   bool stopped_early = false;
   std::string error;
+
+  // Label mode only: lines that were read but produced no sample, because the
+  // SFEN would not parse or the position was not the full 40 pieces MakeSample
+  // needs. Worth reporting rather than swallowing -- a labelling run that
+  // quietly dropped half its input still writes a plausible .bin.
+  int64_t skipped = 0;
 };
 
 using Logger = std::function<void(const std::string&)>;
@@ -80,6 +96,8 @@ using Logger = std::function<void(const std::string&)>;
 void RequestStop();
 bool StopRequested();
 
+// Self-play, or -- when `config.label_path` is set -- one search per position
+// in that file.
 Report Run(const Config& config, const Logger& log);
 
 }  // namespace luna::datagen

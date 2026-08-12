@@ -11,6 +11,7 @@ namespace {
 constexpr const char* kUsage = R"(luna-datagen: generate NNUE training data by self-play.
 
   luna-datagen --out FILE [options]
+  luna-datagen --out FILE --label POSITIONS.sfen [options]
 
 Output:
   --out FILE             where to write the samples (required)
@@ -26,6 +27,26 @@ Search (default: --depth 6 --nodes 2000000):
                          pruned, and one middlegame position can otherwise
                          cost a hundred times what a quiet one does.
   --hash MB              transposition table per thread (default 32)
+
+Labelling instead of self-play:
+  --label FILE           search every SFEN in FILE once, one per line, and
+                         write the scores as samples in the same order.
+                         --games, --openings, --seed and --maxply do nothing
+                         in this mode; --depth, --nodes and --concurrency
+                         still apply. Blank lines and lines starting with '#'
+                         are skipped, so the engine's EvalDump file can be fed
+                         in with its header and its other columns cut off.
+
+                         Nothing is filtered: positions in check, mate scores
+                         and scores past --score-limit are all labelled, which
+                         is the point -- this exists to measure an evaluation
+                         on the positions a search really visits, not on the
+                         tidy subset self-play keeps.
+
+                         The result field is 0 on every sample, because these
+                         positions have no game around them. Fine to measure
+                         against, wrong to train on: train.py would read every
+                         one of them as a draw.
 
 Games:
   --games N              default 1000
@@ -104,6 +125,10 @@ int main(int argc, char** argv) {
       config.sfen_path = value;
       continue;
     }
+    if (flag == "--label") {
+      config.label_path = value;
+      continue;
+    }
 
     int64_t number = 0;
     if (!ParseInt64(value, number)) {
@@ -148,12 +173,19 @@ int main(int argc, char** argv) {
   std::signal(SIGTERM, OnInterrupt);
 #endif
 
-  std::cout << config.games << " games, "
-            << (config.nodes > 0 ? std::to_string(config.nodes) + " nodes"
-                                 : "depth " + std::to_string(config.depth))
-            << " per move, " << config.opening_plies << " opening plies, seed " << config.seed
-            << ", concurrency " << config.concurrency << "\n"
-            << "writing " << config.out_path << (config.append ? " (appending)" : "") << "\n\n";
+  const std::string per_move = (config.depth > 0 ? "depth " + std::to_string(config.depth) : "") +
+                               (config.depth > 0 && config.nodes > 0 ? ", " : "") +
+                               (config.nodes > 0 ? std::to_string(config.nodes) + " nodes" : "");
+
+  if (config.label_path.empty()) {
+    std::cout << config.games << " games, " << per_move << " per move, " << config.opening_plies
+              << " opening plies, seed " << config.seed << ", concurrency " << config.concurrency
+              << "\n";
+  } else {
+    std::cout << "labelling " << config.label_path << ", " << per_move << " per position"
+              << ", concurrency " << config.concurrency << "\n";
+  }
+  std::cout << "writing " << config.out_path << (config.append ? " (appending)" : "") << "\n\n";
   std::cout.flush();
 
   const luna::datagen::Report report = luna::datagen::Run(config, [](const std::string& line) {
@@ -166,12 +198,25 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  std::cout << '\n'
-            << report.games << " games, " << report.samples << " positions written\n"
-            << "black " << report.black_wins << " - white " << report.white_wins << " - draw "
-            << report.draws << '\n';
+  if (config.label_path.empty()) {
+    std::cout << '\n'
+              << report.games << " games, " << report.samples << " positions written\n"
+              << "black " << report.black_wins << " - white " << report.white_wins << " - draw "
+              << report.draws << '\n';
+    if (report.stopped_early) {
+      std::cout << "stopped early; rerun with --append to carry on\n";
+    }
+    return 0;
+  }
+
+  std::cout << '\n' << report.samples << " positions written\n";
+  if (report.skipped > 0) {
+    // Loud, because a labelling run that dropped part of its input still
+    // produces a .bin that looks perfectly reasonable.
+    std::cout << report.skipped << " lines produced nothing (unparsable, or not a full board)\n";
+  }
   if (report.stopped_early) {
-    std::cout << "stopped early; rerun with --append to carry on\n";
+    std::cout << "stopped early; the positions that were reached are all in the output\n";
   }
   return 0;
 }
