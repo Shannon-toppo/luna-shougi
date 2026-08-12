@@ -58,8 +58,13 @@ struct Config {
   std::string sfen_path;
 
   // Touching this file asks the run to finish the games in flight and stop.
-  // Ctrl+C does the same. Either way the output stays usable and --append
-  // picks up from there.
+  // Ctrl+C does the same. Either way the output stays usable.
+  //
+  // Carrying on afterwards is not automatic. `append` keeps the file, but the
+  // games are numbered from 0 every time and game N is played with seed
+  // `seed + N`, so the same command run twice plays the same games twice and
+  // writes them both. The caller has to move `seed` past what is already done
+  // and take the same amount off `games`.
   std::string stop_file;
 
   // Positions to label instead of self-playing, one SFEN per line. Set, and

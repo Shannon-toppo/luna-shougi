@@ -62,8 +62,15 @@ Games:
 
 Stopping:
   --stop-file PATH       create this file to end the run cleanly; Ctrl+C does
-                         the same. Either way --append resumes where it left
-                         off.
+                         the same. Either way the output stays usable.
+
+                         To carry on, --append keeps the existing file, but it
+                         does NOT continue the game sequence: games are always
+                         numbered from 0 and the seed of game N is --seed + N,
+                         so rerunning the same command replays every game it
+                         already played and writes all of it a second time.
+                         Advance --seed past the games that are done and lower
+                         --games by the same amount.
 )";
 
 void OnInterrupt(int) {
