@@ -20,16 +20,21 @@ import numpy as np
 from . import features
 
 FILE_MAGIC = b"LUNANNUE"
-FILE_VERSION = 1
+# 2 since PONANZA_CONSTANT changed. The layout is untouched, so a version 1
+# file would read cleanly and be wrong by a factor of three.
+FILE_VERSION = 2
 HEADER_BYTES = 32
 
 ACTIVATION_SCALE = 127
 WEIGHT_SCALE_BITS = 6
 WEIGHT_SCALE = 1 << WEIGHT_SCALE_BITS
 HIDDEN_BIAS_SCALE = ACTIVATION_SCALE * WEIGHT_SCALE  # 8128
-PONANZA_CONSTANT = 600
+# Kept in step with kPonanzaConstant in src/nnue/network.hpp, which is where
+# the reasoning for the value is written down. training/verify.py is what
+# catches the two drifting apart.
+PONANZA_CONSTANT = 1800
 FV_SCALE = 16
-OUTPUT_BIAS_SCALE = PONANZA_CONSTANT * FV_SCALE  # 9600
+OUTPUT_BIAS_SCALE = PONANZA_CONSTANT * FV_SCALE  # 28800
 OUTPUT_WEIGHT_SCALE = OUTPUT_BIAS_SCALE / ACTIVATION_SCALE
 MAX_EVAL_SCORE = 16000
 

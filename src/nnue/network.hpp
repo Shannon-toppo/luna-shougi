@@ -37,12 +37,13 @@ constexpr int kL3In = kL2Out;
 //   hidden layers        weights int8 at 64, biases int32 at 127*64 = 8128,
 //                        so the int32 output is the float times 8128 and a
 //                        shift of 6 brings it back into activation range
-//   output layer         biases int32 at 9600, weights int8 at 9600/127, so
-//                        the int32 output is the float times 9600
+//   output layer         biases int32 at kOutputBiasScale, weights int8 at
+//                        kOutputBiasScale/127, so the int32 output is the
+//                        float times kOutputBiasScale
 //
 // The float the network learns is a win rate expressed as a score divided by
-// 600 (kPonanzaConstant), so dividing the output by kFvScale = 16 lands in
-// this engine's units, where an unpromoted pawn is 90.
+// kPonanzaConstant, so dividing the output by kFvScale = 16 lands in this
+// engine's units, where an unpromoted pawn is 90.
 //
 // One caveat for anyone comparing a file against the model it came from: the
 // biases in it are not exactly the float bias times the scale above. Rounding
@@ -56,9 +57,25 @@ constexpr int kActivationScale = 127;
 constexpr int kWeightScaleBits = 6;
 constexpr int kWeightScale = 1 << kWeightScaleBits;
 constexpr int kHiddenBiasScale = kActivationScale * kWeightScale;  // 8128
-constexpr int kPonanzaConstant = 600;
+// How many engine points one unit of the network's output is worth, through
+// the sigmoid the trainer fits: the target is sigmoid(score / kPonanzaConstant).
+//
+// This was 600, the conventional shogi value, and 600 is what put the first
+// two generations 750 Elo behind the hand-written evaluation. The trouble is
+// what the constant does at the top of the range: at 600, a score of 3000 is
+// a win rate of 0.9933 and a score of 8000 is 0.9999985, so almost no gradient
+// asks the network to tell them apart, and it learns to stop at about 2600.
+// The search spends 37% of its evaluations past 3000 -- it is mostly looking
+// at positions somebody is already winning -- so a third of its work was being
+// done with a number that had run out of range.
+//
+// 1800 buys that range back: a score of 8000 becomes 0.988, which is squarely
+// where the sigmoid still has a slope. It costs resolution at the other end,
+// where a score of 600 falls from 0.731 to 0.583, and that is the trade to
+// keep an eye on. docs/nnue-search-distribution.md is the measurement.
+constexpr int kPonanzaConstant = 1800;
 constexpr int kFvScale = 16;
-constexpr int kOutputBiasScale = kPonanzaConstant * kFvScale;  // 9600
+constexpr int kOutputBiasScale = kPonanzaConstant * kFvScale;  // 28800
 
 // The evaluation is clamped here so that a broken or wildly extrapolating net
 // can never produce something the search would read as a forced mate.
@@ -79,7 +96,12 @@ constexpr int kMaxEvalScore = 16000;
 // then, in order: ft bias, ft weights, L1 bias, L1 weights, L2 bias, L2
 // weights, L3 bias, L3 weights. Weight matrices are row-major by output.
 inline constexpr char kFileMagic[8] = {'L', 'U', 'N', 'A', 'N', 'N', 'U', 'E'};
-constexpr uint32_t kFileVersion = 1;
+
+// 2 since kPonanzaConstant changed. Nothing about the layout moved, so a
+// version 1 file would load and score, and every number it produced would be
+// a third of what it meant. That is the kind of failure this project keeps
+// paying for, so the loader rejects it instead.
+constexpr uint32_t kFileVersion = 2;
 constexpr size_t kHeaderBytes = 32;
 
 // Memory the SIMD kernels can load from with vector instructions.

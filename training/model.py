@@ -28,14 +28,18 @@ L1_OUT = 32
 L2_OUT = 32
 
 # What the engine divides by to turn the network's output into a score. The
-# network learns a win rate, and 600 is the conventional constant relating a
-# shogi score to one.
-PONANZA_CONSTANT = 600.0
+# network learns a win rate, and this is the constant relating a shogi score
+# to one. 600 is the conventional value and is what the first two generations
+# used; src/nnue/network.hpp explains why it was raised and what it costs.
+PONANZA_CONSTANT = 1800.0
 
-# int8 weights at a scale of 64 for the hidden layers, and at 9600/127 for the
-# output layer.
+# int8 weights at a scale of 64 for the hidden layers, and at
+# PONANZA_CONSTANT * 16 / 127 for the output layer. Derived rather than
+# written out, so that changing the constant cannot leave this behind: a stale
+# limit here clips the output weights to the wrong range and the model quietly
+# trains against a ceiling the engine does not have.
 HIDDEN_WEIGHT_LIMIT = 127.0 / 64.0
-OUTPUT_WEIGHT_LIMIT = 127.0 / (9600.0 / 127.0)
+OUTPUT_WEIGHT_LIMIT = 127.0 / (PONANZA_CONSTANT * 16.0 / 127.0)
 
 
 class HalfKP(nn.Module):
