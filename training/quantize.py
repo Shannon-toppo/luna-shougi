@@ -35,9 +35,9 @@ HIDDEN_BIAS_SCALE = ACTIVATION_SCALE * WEIGHT_SCALE  # 8128
 # below, so a network built at any value scores correctly through the same
 # code. Keep it in step with training/model.py, which is where the loss uses
 # it and where the reasoning for the value is written down.
-PONANZA_CONSTANT = 1800
+PONANZA_CONSTANT = 600
 FV_SCALE = 16
-OUTPUT_BIAS_SCALE = PONANZA_CONSTANT * FV_SCALE  # 28800
+OUTPUT_BIAS_SCALE = PONANZA_CONSTANT * FV_SCALE  # 9600
 OUTPUT_WEIGHT_SCALE = OUTPUT_BIAS_SCALE / ACTIVATION_SCALE
 MAX_EVAL_SCORE = 16000
 

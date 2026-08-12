@@ -31,21 +31,32 @@ L2_OUT = 32
 # rate and this is the constant relating a shogi score to one: the target is
 # sigmoid(score / PONANZA_CONSTANT).
 #
-# 600 is the conventional value and is what the first two generations used. It
-# is also what made them useless in the part of the tree that matters most for
-# their strength. At 600 a score of 3000 is a win rate of 0.9933 and a score of
-# 8000 is 0.9999985, so nothing asks the network to tell them apart and it
-# learns to stop at about 2600 -- while the search spends 37% of its static
-# evaluations past 3000.
+# 600, the conventional value, and raising it has been tried and lost.
 #
-# 1800 buys the range back: 8000 becomes 0.988, where the sigmoid still has a
-# slope. It costs resolution at the other end, where 600 falls from 0.731 to
-# 0.583, and the deciding-band residual gets worse in step. That trade is
-# still being measured; docs/nnue-search-distribution.md has the numbers.
+# The case for raising it was good on paper. At 600 a score of 3000 is a win
+# rate of 0.9933 and 8000 is 0.9999985, so nothing asks the network to tell
+# them apart and it learns to stop at about 2600 -- while the search spends
+# 37% of its static evaluations past 3000. Raising the constant does fix that:
+# at 1800 the median output where the label is past 3000 goes from 937 to 1829,
+# against the hand-written evaluation's 3837.
+#
+# It also costs resolution at the other end, where a score of 600 falls from a
+# win rate of 0.731 to 0.583, and the residual where |label| < 600 goes from
+# 708 to 1242. Three matches of 400 games, same data and same steps, one
+# constant apart, said that side of the trade is the one that matters:
+#
+#     C 600 vs C1200   262-136-2   +113 Elo   LOS 100%
+#     C1200 vs C1800   252-141-7    +99 Elo   LOS 100%
+#     C 600 vs C1800   273-127-0   +133 Elo   LOS 100%
+#
+# Monotone, and every one of them the opposite of what the residual in the
+# tail suggested. Do not raise this again without a match to go with it.
+# docs/nnue-search-distribution.md has the whole measurement.
 #
 # Nothing in the engine reads this. quantize.py folds it into the output
-# layer, so networks built at different values still play each other.
-PONANZA_CONSTANT = 1800.0
+# layer, so networks built at different values still play each other, which is
+# what made those three matches possible on one binary.
+PONANZA_CONSTANT = 600.0
 
 # int8 weights at a scale of 64 for the hidden layers, and at
 # PONANZA_CONSTANT * 16 / 127 for the output layer. Derived rather than

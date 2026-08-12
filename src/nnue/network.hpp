@@ -88,11 +88,11 @@ constexpr int kMaxEvalScore = 16000;
 // weights, L3 bias, L3 weights. Weight matrices are row-major by output.
 inline constexpr char kFileMagic[8] = {'L', 'U', 'N', 'A', 'N', 'N', 'U', 'E'};
 
-// Still 1. The trainer's Ponanza constant went from 600 to 1800, which briefly
-// looked like a format change and is not one: the constant lives in the
-// quantized output layer, so a file built at either value reads and scores
-// correctly here. Bumping the version only broke the older networks for no
-// reason. The version is for changes to the layout above.
+// Still 1, and it has never been anything else. Moving the trainer's Ponanza
+// constant briefly looked like a format change and is not one: the constant
+// lives in the quantized output layer, so a file built at any value reads and
+// scores correctly here. Bumping the version only broke the older networks for
+// no reason. The version is for changes to the layout above.
 constexpr uint32_t kFileVersion = 1;
 constexpr size_t kHeaderBytes = 32;
 
