@@ -12,6 +12,13 @@ crash, it just makes the engine a bit worse than the trainer thought.
 So: the same positions through both, and the scores have to be identical. Not
 close. The arithmetic is integer on both sides and there is nothing in it that
 could legitimately round differently.
+
+What this cannot see is the float model the network was quantized from. Both
+sides here quantize the same way, so a quantization that is wrong in the same
+way on both passes with room to spare -- gen1 agreed exactly on 5000 positions
+while sitting 34.6 engine points below its own model. training/drift.py is
+that other comparison, and being a comparison against floats it is bounded
+rather than exact.
 """
 
 from __future__ import annotations
@@ -99,6 +106,29 @@ class Engine:
             raise RuntimeError(f"the engine is not using a network: {line}")
         simd = tokens[-1].strip("()")
         return int(tokens[4]), simd
+
+    def evaluate_either(self, sfen: str) -> tuple[int, str]:
+        """The score, from whichever evaluation the engine is using.
+
+        The two print different shapes, and the hand-written one leads with a
+        term rather than its total:
+
+            info string eval nnue -137 net D:/nets/gen1.nnue (avx2)
+            info string eval material 123 pst -45 king 0 tempo 30 total 108
+
+        Reading "the fifth token" gets `material` out of the second, which is
+        from black where `total` is from the side to move. On a mixed set of
+        positions that mistake looks exactly like a sign bug in the network.
+        """
+        self.send(f"position sfen {sfen}")
+        self.send("eval")
+        line = self.read_lines(lambda line: line.startswith("info string eval"))[-1]
+        tokens = line.split()
+        if len(tokens) >= 5 and tokens[3] == "nnue":
+            return int(tokens[4]), "nnue"
+        if "total" in tokens:
+            return int(tokens[tokens.index("total") + 1]), "hand-written"
+        raise RuntimeError(f"cannot read an evaluation out of: {line}")
 
     def close(self) -> None:
         try:

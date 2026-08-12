@@ -107,6 +107,22 @@ def to_batch(samples: np.ndarray) -> Batch:
     )
 
 
+def sample_evenly(paths: Sequence[str], count: int) -> Batch:
+    """`count` samples spread over the files, as one batch.
+
+    For quantization's bias correction, which needs a few thousand positions
+    that look like the ones the network will meet and needs them cheaply.
+
+    Evenly spread rather than the first N, because the front of a datagen file
+    is the opening moves of the first games and nothing else. Nothing random is
+    involved: the same files and the same count give the same batch every time,
+    so a checkpoint exported twice is the same network twice.
+    """
+    files = SampleFiles(paths)
+    index = np.linspace(0, len(files) - 1, min(count, len(files))).astype(np.int64)
+    return to_batch(np.concatenate([files.read(int(i), 1) for i in index]))
+
+
 class StreamingLoader:
     """Batches, in an order that a stopped run can pick up again exactly.
 
