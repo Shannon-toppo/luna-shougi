@@ -214,8 +214,17 @@ def accumulate(net: QuantizedNet, indices: np.ndarray) -> np.ndarray:
     return net.ft_weight[indices].sum(axis=1, dtype=np.int32) + net.ft_bias.astype(np.int32)
 
 
-def evaluate(net: QuantizedNet, black: np.ndarray, white: np.ndarray, stm: np.ndarray):
-    """Scores in engine units, exactly as src/nnue/network.cpp computes them."""
+def forward(net: QuantizedNet, black: np.ndarray, white: np.ndarray, stm: np.ndarray):
+    """The integer pipeline stage by stage: (L1 sum, L2 sum, output sum).
+
+    The two hidden ones are the int32 sums before the shift and the clamp, at
+    scale 8128; the last is before the division by kFvScale, at scale 9600.
+
+    Split out of evaluate() rather than written twice because correct_biases
+    needs to see the numbers on the way through, and a second copy of this
+    arithmetic would be a second thing for the engine to disagree with. This
+    one is what verify.py holds src/nnue/network.cpp to.
+    """
     black = np.atleast_2d(np.asarray(black, dtype=np.int64))
     white = np.atleast_2d(np.asarray(white, dtype=np.int64))
     stm = np.atleast_1d(np.asarray(stm, dtype=np.int64))
@@ -227,11 +236,106 @@ def evaluate(net: QuantizedNet, black: np.ndarray, white: np.ndarray, stm: np.nd
     opponent = np.where(pick, black_half, white_half)
 
     x = np.concatenate([_clipped_relu_16(own), _clipped_relu_16(opponent)], axis=1)
-    x = _clipped_relu_32(
-        x.astype(np.int32) @ net.l1_weight.astype(np.int32).T + net.l1_bias.astype(np.int32)
-    )
-    x = _clipped_relu_32(
-        x.astype(np.int32) @ net.l2_weight.astype(np.int32).T + net.l2_bias.astype(np.int32)
-    )
-    raw = x.astype(np.int32) @ net.l3_weight.astype(np.int32) + net.l3_bias.astype(np.int32)
+    l1 = x.astype(np.int32) @ net.l1_weight.astype(np.int32).T + net.l1_bias.astype(np.int32)
+    x = _clipped_relu_32(l1)
+    l2 = x.astype(np.int32) @ net.l2_weight.astype(np.int32).T + net.l2_bias.astype(np.int32)
+    x = _clipped_relu_32(l2)
+    out = x.astype(np.int32) @ net.l3_weight.astype(np.int32) + net.l3_bias.astype(np.int32)
+    return l1, l2, out
+
+
+def evaluate(net: QuantizedNet, black: np.ndarray, white: np.ndarray, stm: np.ndarray):
+    """Scores in engine units, exactly as src/nnue/network.cpp computes them."""
+    raw = forward(net, black, white, stm)[2]
     return np.clip(_trunc_div(raw, FV_SCALE), -MAX_EVAL_SCORE, MAX_EVAL_SCORE)
+
+
+# --- bias correction -------------------------------------------------------
+
+
+def _float_stages(model, black: np.ndarray, white: np.ndarray, stm: np.ndarray):
+    """The float model's three pre-activations on the same positions.
+
+    Taken off the model with forward hooks rather than by writing the forward
+    pass out again here. The correction is measured against what training
+    actually optimized, and a third copy of the network -- after model.py and
+    src/nnue/network.cpp -- would be a third thing to keep in step.
+    """
+    import torch
+
+    device = next(model.parameters()).device
+    was_training = model.training
+    model.eval()
+    captured: dict = {}
+    handles = [
+        module.register_forward_hook(
+            lambda _module, _inputs, output, key=key: captured.__setitem__(
+                key, output.detach().to("cpu", torch.float64).numpy()
+            )
+        )
+        for key, module in (("l1", model.l1), ("l2", model.l2), ("out", model.out))
+    ]
+    try:
+        with torch.no_grad():
+            model(
+                torch.as_tensor(np.asarray(black), dtype=torch.long, device=device),
+                torch.as_tensor(np.asarray(white), dtype=torch.long, device=device),
+                torch.as_tensor(np.asarray(stm), dtype=torch.float32, device=device),
+            )
+    finally:
+        for handle in handles:
+            handle.remove()
+        if was_training:
+            model.train()
+    return captured["l1"], captured["l2"], captured["out"][:, 0]
+
+
+def correct_biases(net: QuantizedNet, model, black, white, stm) -> dict:
+    """Move each layer's integer bias so the layer's mean output is right again.
+
+    Rounding a weight to int8 is unbiased across weights, but a layer is not a
+    weight. L1 and L2 are dense: every one of their inputs is used by every
+    position, so their rounding error is one fixed linear functional of an
+    activation vector that barely moves from position to position. It is
+    therefore a near-constant, not noise -- a different constant for every
+    network, of either sign, and around thirty engine points wide. The feature
+    transformer behaves properly by comparison, because each position sums a
+    different 38 of its rows and the error really does average out.
+
+    A constant is the one shape of error this evaluation cannot afford. It is
+    from the side to move, so negamax flips its sign every ply and it lands as
+    a tempo bonus at every node.
+
+    So: run `black`, `white`, `stm` through both the float model and the
+    quantized one, take the mean error at each layer, and subtract it from that
+    layer's integer bias. The biases are int32 with room to spare, which is
+    what makes this free. Layer by layer and in order, because correcting L1
+    changes what L2 sees; by the last layer the mean output error on these
+    positions is nulled outright, and the shift and the truncation get absorbed
+    along with everything else.
+
+    The engine is untouched: this changes the numbers in the file, not the
+    arithmetic that reads them, so training/verify.py still matches exactly.
+
+    Calibrate on training positions and measure on held-out ones -- a mean
+    fitted on the holdout and then reported there says nothing.
+    """
+    info = np.iinfo(np.int32)
+    float_stages = _float_stages(model, black, white, stm)
+    scales = (HIDDEN_BIAS_SCALE, HIDDEN_BIAS_SCALE, OUTPUT_BIAS_SCALE)
+    names = ("l1_bias", "l2_bias", "l3_bias")
+
+    def mean_output_error() -> float:
+        """Where the network's score sits against the model's, in engine points."""
+        raw = forward(net, black, white, stm)[2]
+        return float(np.mean(raw - OUTPUT_BIAS_SCALE * float_stages[2]) / FV_SCALE)
+
+    report = {"before": mean_output_error()}
+    for index, (name, scale) in enumerate(zip(names, scales)):
+        error = forward(net, black, white, stm)[index] - scale * float_stages[index]
+        shift = np.rint(np.mean(error, axis=0))
+        corrected = np.clip(getattr(net, name) - shift, info.min, info.max)
+        setattr(net, name, corrected.astype(np.int32))
+        report[name] = float(np.max(np.abs(shift)))
+    report["after"] = mean_output_error()
+    return report

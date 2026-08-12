@@ -12,6 +12,13 @@ crash, it just makes the engine a bit worse than the trainer thought.
 So: the same positions through both, and the scores have to be identical. Not
 close. The arithmetic is integer on both sides and there is nothing in it that
 could legitimately round differently.
+
+What this cannot see is the float model the network was quantized from. Both
+sides here quantize the same way, so a quantization that is wrong in the same
+way on both passes with room to spare -- gen1 agreed exactly on 5000 positions
+while sitting 34.6 engine points below its own model. training/drift.py is
+that other comparison, and being a comparison against floats it is bounded
+rather than exact.
 """
 
 from __future__ import annotations

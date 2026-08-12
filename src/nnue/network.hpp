@@ -43,6 +43,15 @@ constexpr int kL3In = kL2Out;
 // The float the network learns is a win rate expressed as a score divided by
 // 600 (kPonanzaConstant), so dividing the output by kFvScale = 16 lands in
 // this engine's units, where an unpromoted pawn is 90.
+//
+// One caveat for anyone comparing a file against the model it came from: the
+// biases in it are not exactly the float bias times the scale above. Rounding
+// the weights of a dense layer to int8 is unbiased per weight but not per
+// layer -- every input is used by every position, so what is left is one fixed
+// offset rather than noise, worth tens of points at the output and of either
+// sign. training/quantize.py measures each layer's offset and folds it into
+// that layer's bias, which is int32 and has the room. Nothing on this side
+// changes; the engine reads the numbers it is given.
 constexpr int kActivationScale = 127;
 constexpr int kWeightScaleBits = 6;
 constexpr int kWeightScale = 1 << kWeightScaleBits;

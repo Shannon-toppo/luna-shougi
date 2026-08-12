@@ -58,6 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="steps between checkpoints that are kept rather than replaced")
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--export", help="also write a .nnue file every --save-every steps")
+    parser.add_argument("--calibration-samples", type=int, default=4096,
+                        help="positions from --data used to correct the quantized biases "
+                             "on every --export. 0 exports without the correction")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser
 
@@ -165,6 +168,16 @@ def main(argv: list[str]) -> int:
             args.val_data, args.batch_size, args.val_samples, to_device, device
         )
 
+    # Positions for the quantized biases to be corrected against, read once.
+    # Training data rather than held-out data: the correction is fitted here,
+    # and a number fitted on the holdout could not then be measured there.
+    # Like the holdout, this touches no random number generator and does not
+    # move the loader, so a run with --export stays bit-identical to one
+    # without it.
+    calibration = None
+    if args.export and args.calibration_samples:
+        calibration = dataset.sample_evenly(args.data, args.calibration_samples)
+
     driver = control.Control(run_dir)
     # A leftover stop file from the run that just ended would stop this one on
     # its first step. Asking for a stop again is one command; noticing why a
@@ -215,6 +228,12 @@ def main(argv: list[str]) -> int:
         if not args.export:
             return
         quantized, clipped = quantize.quantize(net)
+        if calibration is not None:
+            report = quantize.correct_biases(
+                quantized, net, calibration.black, calibration.white, calibration.side_to_move
+            )
+            print(f"  quantized mean error {report['before']:+.1f} -> {report['after']:+.1f} "
+                  "engine points")
         quantize.write(quantized, args.export)
         total = sum(clipped.values())
         if total:

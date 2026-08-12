@@ -131,6 +131,21 @@ printf "usi\nisready\nposition startpos\ngo depth 6\nquit\n" | luna-shougi.exe
 
 **PVが手待ちになる。**平手初期局面でgen2は `6i6h` を選び、PVの4手後に `6h6i` と戻す。手書き評価は `7g7f` から普通に組む。候補手の優劣を分解できていない挙動に見えるが、1手違いの局面ペアでの変化量の残差を測ると gen2 213、手書き 572 で、gen2のほうが良い。説明がついていない。
 
+## この記録のネットワークは量子化補正の前のもの
+
+**`nets/gen2.nnue` は `quantize.correct_biases` が入る前に書き出したファイル**である。上の対局も測定も全部それで取った。
+
+補正は同じネットワークどうしの比較で **+62.3 ± 34.5 Elo**(別シードで +40.1 ± 34.3)の価値があると測られている(`docs/nnue-gen1.md`)。gen2が負けた幅は -759 Elo なので、**補正の不在はこの失敗を説明しない**。桁が2つ違う。
+
+それでも、次に何かを試す前にこれを済ませるべきである。再エクスポートは1分、対局のやり直しは30分で、以降の測定が全部この土台に乗る。
+
+```bash
+uv run python -m training.serialize runs/gen2/checkpoint.pt nets/gen2.nnue --calibration data/gen2.bin
+uv run python -m training.drift --checkpoint runs/gen2/checkpoint.pt --net nets/gen2.nnue --sfen data/holdout6.sfen
+```
+
+`drift.py` はこの記録を書いている時点でgen2に対して回していない。**gen2の定数ずれが何点だったかは分かっていない。**±30点程度の分布から引くものなので、gen1の-34.6とは無関係な値になる。
+
 ## 次にやること
 
 **推測でデータセットを作るのをやめる。**
@@ -145,4 +160,5 @@ printf "usi\nisready\nposition startpos\ngo depth 6\nquit\n" | luna-shougi.exe
 
 - `training/baseline.py` — ホールドアウトでの残差sd。`--net` で学習済みネットも同じ物差しで測れる
 - `training/holdout.py` / `train.py --val-data` — 学習中の検証。分布の狭いホールドアウトだけを見ても、この失敗は見えない
+- `training/drift.py` — floatモデルと量子化ネットワークの平均のずれ。**この記録の測定には使っていない**(補正と同時に入ったため)。次の世代では書き出しのたびに通すこと
 - `data/holdout6.bin`(深さ6、開始8手、seed 999)、`data/wild.bin`(深さ6、開始40手、seed 777)
