@@ -14,9 +14,16 @@ Two numbers come out of here:
     the engine's own units, over the positions where the evaluation still
     decides the game. This one is comparable to something outside the training
     run: training/baseline.py puts the hand-written evaluation on the same
-    holdout, and a network that cannot beat what it scores is not worth the
-    3.3x it costs the search to run. The pass mark belongs to a depth and to a
-    holdout, so measure it again whenever either changes.
+    holdout. The pass mark belongs to a depth and to a holdout, so measure it
+    again whenever either changes.
+
+`val_resid` is a floor, not a certificate. Losing to the hand-written
+evaluation here predicted the first generation's 1-399-0; beating it did not
+save the second, which came in 16% ahead on this number and then lost 394 of
+400 games. Read it only in the failing direction -- it is worth having because
+it fails a run in seconds rather than in the half hour a match costs -- and
+before adding another number beside it, check that the new one accounts for
+both of those results. docs/nnue-gen2.md is the record of three that did not.
 
 `val_resid` covers |label| < 600 rather than everything, and the second
 generation is why. The loss trains on win rates through sigmoid(score / 600),

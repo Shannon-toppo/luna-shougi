@@ -139,7 +139,7 @@ def main(argv: list[str]) -> int:
         band = f"{lo}-{hi}" if hi else f"{lo}+"
         print(f"    {band:>10} {n:>6}  {sd:>6.0f}")
     print(f"  resid sd, |label| < {DECIDING}   {result['resid_deciding']:.0f}"
-          f"   <- the number to beat ({result['n_deciding']:,} positions)")
+          f"   <- the floor to clear ({result['n_deciding']:,} positions)")
     print(f"  resid sd, everything      {result['resid']:.0f}"
           f"   (dominated by the band the loss ignores)")
     return 0
