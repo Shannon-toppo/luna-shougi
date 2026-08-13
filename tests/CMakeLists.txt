@@ -10,6 +10,7 @@ add_executable(luna_tests
   test_arbiter.cpp
   test_elo.cpp
   test_eval.cpp
+  test_evaldump.cpp
   test_movegen.cpp
   test_nnue.cpp
   test_perft.cpp

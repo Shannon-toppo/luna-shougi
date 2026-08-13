@@ -9,6 +9,7 @@
 
 #include "core/movegen.hpp"
 #include "nnue/evaluate.hpp"
+#include "search/evaldump.hpp"
 #include "search/see.hpp"
 
 namespace luna {
@@ -119,6 +120,16 @@ int MaterialGain(const Position& pos, Move m) {
   if (captured != kNoPiece) gain += eval::CaptureValue(TypeOf(captured));
   if (m.IsPromotion()) gain += eval::PromotionGain(TypeOf(pos.PieceOn(m.From())));
   return gain;
+}
+
+// Every static evaluation the search takes goes through here, so that the
+// debug dump sees the same numbers the search does and nothing can be
+// evaluated behind its back. With no dump open this is eval::Evaluate plus a
+// relaxed load of a bool.
+int EvaluateAt(const Position& pos, eval::dump::Site site, int ply, int worker) {
+  const int score = eval::Evaluate(pos);
+  if (eval::dump::Enabled()) eval::dump::Record(pos, score, site, ply, worker);
+  return score;
 }
 
 }  // namespace
@@ -307,7 +318,7 @@ int Search::Worker::Quiescence(int alpha, int beta, int ply) {
   if (ShouldStop()) return eval::kDraw;
 
   seldepth_ = std::max(seldepth_, ply);
-  if (ply >= kMaxPly) return eval::Evaluate(pos_);
+  if (ply >= kMaxPly) return EvaluateAt(pos_, eval::dump::Site::kHorizon, ply, id_);
 
   const bool in_check = pos_.InCheck();
 
@@ -317,7 +328,7 @@ int Search::Worker::Quiescence(int alpha, int beta, int ply) {
   int best = -eval::kInfinite;
   int stand_pat = 0;
   if (!in_check) {
-    stand_pat = eval::Evaluate(pos_);
+    stand_pat = EvaluateAt(pos_, eval::dump::Site::kStandPat, ply, id_);
     best = stand_pat;
     if (best >= beta) return best;
     alpha = std::max(alpha, best);
@@ -390,7 +401,7 @@ int Search::Worker::AlphaBeta(int depth, int alpha, int beta, int ply, bool null
     if (alpha >= beta) return alpha;
   }
 
-  if (ply >= kMaxPly) return eval::Evaluate(pos_);
+  if (ply >= kMaxPly) return EvaluateAt(pos_, eval::dump::Site::kHorizon, ply, id_);
 
   // Being in check means the position is unsettled and the reply is nearly
   // forced, so it is cheap to look one ply further. This also keeps the
@@ -421,7 +432,7 @@ int Search::Worker::AlphaBeta(int depth, int alpha, int beta, int ply, bool null
   int static_eval = 0;
 
   if (prune_ok) {
-    static_eval = eval::Evaluate(pos_);
+    static_eval = EvaluateAt(pos_, eval::dump::Site::kPrune, ply, id_);
 
     // Reverse futility. Being this far above beta with this little depth left
     // means the opponent cannot claw it back, so there is nothing to look at.

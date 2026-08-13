@@ -37,12 +37,22 @@ constexpr int kL3In = kL2Out;
 //   hidden layers        weights int8 at 64, biases int32 at 127*64 = 8128,
 //                        so the int32 output is the float times 8128 and a
 //                        shift of 6 brings it back into activation range
-//   output layer         biases int32 at 9600, weights int8 at 9600/127, so
-//                        the int32 output is the float times 9600
+//   output layer         biases int32 at C*kFvScale, weights int8 at
+//                        C*kFvScale/127, so the int32 output is the float
+//                        times C*kFvScale
 //
-// The float the network learns is a win rate expressed as a score divided by
-// 600 (kPonanzaConstant), so dividing the output by kFvScale = 16 lands in
-// this engine's units, where an unpromoted pawn is 90.
+// C is the trainer's Ponanza constant: the network learns a win rate whose
+// argument is a score divided by C, and the quantizer folds C into the output
+// layer's numbers on the way out. So dividing by kFvScale = 16 lands in this
+// engine's units, where an unpromoted pawn is 90, and it does so whatever C
+// was.
+//
+// Nothing here needs to know C, and nothing here does. That is worth stating
+// plainly, because it is not obvious and it was got wrong once: raising C from
+// 600 to 1800 changes the trainer, the loss and the numbers written into the
+// file, and changes nothing about this file's arithmetic. A network built at
+// either constant scores correctly through the same code, which is what lets
+// two of them play each other.
 //
 // One caveat for anyone comparing a file against the model it came from: the
 // biases in it are not exactly the float bias times the scale above. Rounding
@@ -56,9 +66,7 @@ constexpr int kActivationScale = 127;
 constexpr int kWeightScaleBits = 6;
 constexpr int kWeightScale = 1 << kWeightScaleBits;
 constexpr int kHiddenBiasScale = kActivationScale * kWeightScale;  // 8128
-constexpr int kPonanzaConstant = 600;
 constexpr int kFvScale = 16;
-constexpr int kOutputBiasScale = kPonanzaConstant * kFvScale;  // 9600
 
 // The evaluation is clamped here so that a broken or wildly extrapolating net
 // can never produce something the search would read as a forced mate.
@@ -79,6 +87,12 @@ constexpr int kMaxEvalScore = 16000;
 // then, in order: ft bias, ft weights, L1 bias, L1 weights, L2 bias, L2
 // weights, L3 bias, L3 weights. Weight matrices are row-major by output.
 inline constexpr char kFileMagic[8] = {'L', 'U', 'N', 'A', 'N', 'N', 'U', 'E'};
+
+// Still 1, and it has never been anything else. Moving the trainer's Ponanza
+// constant briefly looked like a format change and is not one: the constant
+// lives in the quantized output layer, so a file built at any value reads and
+// scores correctly here. Bumping the version only broke the older networks for
+// no reason. The version is for changes to the layout above.
 constexpr uint32_t kFileVersion = 1;
 constexpr size_t kHeaderBytes = 32;
 

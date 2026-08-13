@@ -29,3 +29,7 @@ cmake_install.cmake
 compile_commands.json
 Testing/
 CTestTestfile.cmake
+
+# A copy of the engine for a GUI to point at; the build directory gets
+# overwritten and this does not.
+dist/

@@ -20,6 +20,9 @@ import numpy as np
 from . import features
 
 FILE_MAGIC = b"LUNANNUE"
+# Still 1. PONANZA_CONSTANT changing is not a format change: it is folded into
+# the output layer's weights and biases here, and the engine divides by
+# FV_SCALE either way. The version is for the layout.
 FILE_VERSION = 1
 HEADER_BYTES = 32
 
@@ -27,6 +30,11 @@ ACTIVATION_SCALE = 127
 WEIGHT_SCALE_BITS = 6
 WEIGHT_SCALE = 1 << WEIGHT_SCALE_BITS
 HIDDEN_BIAS_SCALE = ACTIVATION_SCALE * WEIGHT_SCALE  # 8128
+# Engine points per unit of the network's output. This is a trainer-side
+# choice and the engine never sees it: it is folded into the output layer
+# below, so a network built at any value scores correctly through the same
+# code. Keep it in step with training/model.py, which is where the loss uses
+# it and where the reasoning for the value is written down.
 PONANZA_CONSTANT = 600
 FV_SCALE = 16
 OUTPUT_BIAS_SCALE = PONANZA_CONSTANT * FV_SCALE  # 9600

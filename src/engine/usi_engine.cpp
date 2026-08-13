@@ -9,6 +9,7 @@
 #include "engine/bench.hpp"
 #include "nnue/evaluate.hpp"
 #include "search/eval.hpp"
+#include "search/evaldump.hpp"
 #include "search/timeman.hpp"
 #include "search/tt.hpp"
 
@@ -30,6 +31,13 @@ constexpr const char* kEvalFileOption = "EvalFile";
 
 // How many threads the search runs on, the one it is started from included.
 constexpr const char* kThreadsOption = "Threads";
+
+// Debug: where to write every static evaluation the search takes, and how
+// many to skip between the ones written. Empty path, the default, records
+// nothing and costs nothing. See src/search/evaldump.hpp for why this exists.
+constexpr const char* kEvalDumpOption = "EvalDump";
+constexpr const char* kEvalDumpEveryOption = "EvalDumpEvery";
+constexpr int64_t kMaxEvalDumpEvery = 100'000'000;
 }  // namespace
 
 UsiEngine::UsiEngine() {
@@ -40,6 +48,10 @@ UsiEngine::UsiEngine() {
 
 UsiEngine::~UsiEngine() {
   StopSearch();
+  // The search is what writes to the dump, so it has to be over first. Closing
+  // here rather than leaving it to the stream's own destructor keeps a dump
+  // from outliving the engine that opened it, which is what the tests need.
+  eval::dump::Close();
 }
 
 void UsiEngine::Emit(const std::string& line) {
@@ -205,6 +217,43 @@ std::vector<std::string> UsiEngine::HandleSetOption(const std::string& line) {
     }
     return {"info string eval nnue " + value + " (" + nnue::SimdName() + ")"};
   }
+
+  if (name == kEvalDumpEveryOption) {
+    try {
+      eval::dump::SetStride(std::stoll(value));
+    } catch (const std::exception&) {
+      // Same as the numeric options above: an unreadable count is ignored.
+    }
+    return {"info string eval dump every " + std::to_string(eval::dump::Stride())};
+  }
+
+  if (name == kEvalDumpOption) {
+    if (value.empty()) {
+      // Reported on the way out because the counts are the only evidence the
+      // dump ran at all, and a file with nothing in it looks the same as one
+      // that was never opened.
+      const std::string written = std::to_string(eval::dump::Count());
+      const std::string seen = std::to_string(eval::dump::Seen());
+      eval::dump::Close();
+      return {"info string eval dump off, " + written + " of " + seen + " evaluations written"};
+    }
+    std::string error;
+    if (!eval::dump::Open(value, error)) {
+      // Unlike EvalFile there is no falling back to be done: nothing was
+      // recorded, and a measurement run has to hear about that.
+      return {"info string EvalDump failed: " + error};
+    }
+    std::vector<std::string> response{"info string eval dump " + value + " every " +
+                                      std::to_string(eval::dump::Stride())};
+    if (search_.Threads() > 1) {
+      // Not an error. The records are still complete and none of them are
+      // torn, but the helper threads pick their own depths, so two runs of the
+      // same position do not produce the same file.
+      response.push_back("info string eval dump: Threads " + std::to_string(search_.Threads()) +
+                         " makes the dump unreproducible; set Threads 1 to compare two runs");
+    }
+    return response;
+  }
   return {};
 }
 
@@ -289,12 +338,17 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
     std::ostringstream threads_option;
     threads_option << "option name " << kThreadsOption << " type spin default 1 min 1 max "
                    << kMaxThreads;
+    std::ostringstream dump_every_option;
+    dump_every_option << "option name " << kEvalDumpEveryOption
+                      << " type spin default 1 min 1 max " << kMaxEvalDumpEvery;
     return {
         std::string("id name ") + kEngineName,
         std::string("id author ") + kEngineAuthor,
         hash_option.str(),
         threads_option.str(),
         std::string("option name ") + kEvalFileOption + " type string default ",
+        std::string("option name ") + kEvalDumpOption + " type string default ",
+        dump_every_option.str(),
         "usiok",
     };
   }

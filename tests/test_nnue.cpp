@@ -78,6 +78,8 @@ void FillNetwork(nnue::Network& network, uint64_t seed) {
   for (size_t i = 0; i < w.l3_weight.size(); ++i) {
     w.l3_weight.data()[i] = static_cast<int8_t>(rng.Range(-127, 127));
   }
+  // The output bias is int32 at the trainer's own scale, which the engine
+  // never sees. Any magnitude of that order exercises the same arithmetic.
   w.l3_bias.data()[0] = rng.Range(-9600, 9600);
 }
 
