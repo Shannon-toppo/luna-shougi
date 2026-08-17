@@ -41,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--lr-every", type=int, default=2000)
     parser.add_argument("--lambda-score", type=float, default=0.7,
                         help="weight of the search score against the game result")
+    parser.add_argument("--score-weight", type=float, default=0.0,
+                        help="weight of a Huber term on the score itself, on top of the "
+                             "win-rate loss. 0, the default, is the loss the first three "
+                             "generations used. Non-zero pulls the output range back out to "
+                             "where the search needs it; see training/model.py")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--chunk-samples", type=int, default=1 << 20,
                         help="samples read at a time and shuffled together")
@@ -203,7 +208,7 @@ def main(argv: list[str]) -> int:
     def validate() -> None:
         if holdout is None:
             return
-        record = {"step": step, **holdout.measure(net, args.lambda_score)}
+        record = {"step": step, **holdout.measure(net, args.lambda_score, args.score_weight)}
         print(
             f"  holdout   val loss {record['val_loss']:.6f}  "
             f"resid {record['val_resid']:.0f} (deciding) {record['val_resid_all']:.0f} (all)  "
@@ -275,7 +280,8 @@ def main(argv: list[str]) -> int:
 
         black, white, stm, score, result = to_device(batch, device)
         prediction = net(black, white, stm)
-        loss = model_module.loss(prediction, score, result, stm, args.lambda_score)
+        loss = model_module.loss(prediction, score, result, stm, args.lambda_score,
+                                 args.score_weight)
 
         optimizer.zero_grad(set_to_none=True)
         sparse_optimizer.zero_grad(set_to_none=True)

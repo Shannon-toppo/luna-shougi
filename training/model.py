@@ -115,14 +115,31 @@ class HalfKP(nn.Module):
         self.out.weight.clamp_(-OUTPUT_WEIGHT_LIMIT, OUTPUT_WEIGHT_LIMIT)
 
 
+# Where the score term stops being quadratic, in the network's own output
+# units (one unit is PONANZA_CONSTANT engine points). 1.0 puts the knee at a
+# whole constant's worth of error, so the deciding band -- where the labels are
+# a fraction of a unit and the win-rate term is already doing the work -- stays
+# quadratic, and the tail, where the labels run to 25 units, is linear and
+# cannot dominate the gradient.
+SCORE_HUBER_DELTA = 1.0
+
+# Labels past this are not scores, they are mate announcements, and asking a
+# static evaluation to regress +32000 teaches it nothing. luna-datagen already
+# drops them, but a file labelled from a search dump has plenty, so the term
+# clamps rather than trusting its input.
+SCORE_CLAMP = 16000.0
+
+
 def loss(
     prediction: torch.Tensor,
     score: torch.Tensor,
     result: torch.Tensor,
     stm: torch.Tensor,
     lambda_score: float = 0.7,
+    score_weight: float = 0.0,
 ) -> torch.Tensor:
-    """Squared error against a blend of the search score and the game result.
+    """Squared error against a blend of the search score and the game result,
+    optionally plus a term on the score itself.
 
     Both targets are win rates rather than scores, which is what makes the
     blend meaningful: a score of +2000 and a score of +3000 are almost the
@@ -133,10 +150,54 @@ def loss(
     score is what makes the first generation of a net trainable at all — the
     result of one game is a very noisy label — and leaning on the result is
     what eventually lets a net become better than the search that taught it.
+
+    `score_weight` adds a Huber term on the raw output against the raw score.
+    It defaults to 0, which is exactly the loss the first three generations
+    were trained with, down to the arithmetic.
+
+    Why the extra term exists. "+2000 and +3000 are the same position" is true
+    of the move to play and false of the number the search needs: alpha-beta
+    compares evaluations against margins, and a sigmoid that has saturated
+    returns nearly the same number for positions hundreds of points apart. The
+    third generation stopped at an output of 3335 where the hand-written
+    evaluation reaches 10228, because sigmoid(3335/600) is 0.9959 and there is
+    no gradient past it — and 37% of what the search evaluates lives out there.
+
+    The other way to reach that range is to raise PONANZA_CONSTANT, which
+    stretches the sigmoid at both ends at once. It was tried and it lost three
+    matches out of three, because what it gives up is the deciding band.
+
+    This term is not free either -- it costs the deciding band too -- but it
+    buys far more with it. On the same 391k slice, 30k steps, measured on the
+    tree the search walks:
+
+        w=0      tail  936   deciding  711
+        w=0.003  tail 1127   deciding  816
+        w=0.01   tail 1968   deciding  989
+        w=0.03   tail 2438   deciding 1087
+        C=1200   tail 1514   deciding  997     <- the constant, for comparison
+        C=1800   tail 1829   deciding 1242
+        hand     tail 3837   deciding  653
+
+    At the same cost in the deciding band, w=0.01 reaches further into the tail
+    than C=1200 does (1968 against 1514) and predicts the label better overall
+    (residual 1984 against 2223). Which weight is actually worth playing is a
+    question for a match, not for this table; C=1200 looked reasonable here too.
     """
     sign = 1.0 - 2.0 * stm  # scores and results are stored from black
+    stm_score = score * sign
+
     predicted_win = torch.sigmoid(prediction)
-    score_win = torch.sigmoid(score * sign / PONANZA_CONSTANT)
+    score_win = torch.sigmoid(stm_score / PONANZA_CONSTANT)
     result_win = (result * sign + 1.0) / 2.0
     target = lambda_score * score_win + (1.0 - lambda_score) * result_win
-    return ((predicted_win - target) ** 2).mean()
+    total = ((predicted_win - target) ** 2).mean()
+
+    if score_weight:
+        # Both sides in output units, so the weight is a pure ratio and does
+        # not have to absorb a factor of PONANZA_CONSTANT.
+        wanted = stm_score.clamp(-SCORE_CLAMP, SCORE_CLAMP) / PONANZA_CONSTANT
+        total = total + score_weight * torch.nn.functional.huber_loss(
+            prediction, wanted, delta=SCORE_HUBER_DELTA
+        )
+    return total

@@ -118,7 +118,12 @@ class Holdout:
             raise ValueError(f"{', '.join(self.paths)}: no samples to measure on")
 
     @torch.no_grad()
-    def measure(self, net: torch.nn.Module, lambda_score: float) -> dict:
+    def measure(self, net: torch.nn.Module, lambda_score: float,
+                score_weight: float = 0.0) -> dict:
+        # `score_weight` is passed through so that val_loss stays the same
+        # quantity as the training loss printed next to it. Comparing the two
+        # is the whole point of this file, and a run with the score term on
+        # would otherwise be comparing two different functions.
         was_training = net.training
         net.eval()
         total_loss = 0.0
@@ -130,7 +135,7 @@ class Holdout:
         deciding_n = 0
         for black, white, stm, score, result in self.batches:
             prediction = net(black, white, stm)
-            loss = model_module.loss(prediction, score, result, stm, lambda_score)
+            loss = model_module.loss(prediction, score, result, stm, lambda_score, score_weight)
 
             # The label is the search score from the side to move; the network
             # predicts it divided by the ponanza constant. Undo that and the
