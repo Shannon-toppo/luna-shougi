@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>luna-shougi の読み方</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@600;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+:root{
+  --ground:#F6F7F9;
+  --surface:#FFFFFF;
+  --surface-2:#EFF2F6;
+  --ink:#1A1F26;
+  --ink-2:#525E6D;
+  --ink-3:#7C8899;
+  --rule:#DCE1E8;
+  --rule-strong:#C3CBD6;
+  --accent:#2D5B8E;
+  --accent-soft:#E7EEF7;
+  --good:#1C6B58;
+  --good-soft:#E2F0EB;
+  --bad:#9E4030;
+  --bad-soft:#F7E8E4;
+  --warn:#836717;
+  --warn-soft:#F5EEDA;
+  --shadow:0 1px 2px rgba(26,31,38,.05), 0 8px 24px -16px rgba(26,31,38,.25);
+
+  --f-display:"Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --f-body:"Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#12161B;
+    --surface:#191E25;
+    --surface-2:#20262E;
+    --ink:#E6EAEF;
+    --ink-2:#A3AEBC;
+    --ink-3:#78838F;
+    --rule:#2B323B;
+    --rule-strong:#3B444F;
+    --accent:#83B3E2;
+    --accent-soft:#1B2836;
+    --good:#63C0A4;
+    --good-soft:#152A26;
+    --bad:#E28A78;
+    --bad-soft:#2E1D19;
+    --warn:#D5B45F;
+    --warn-soft:#2B2617;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#12161B;
+  --surface:#191E25;
+  --surface-2:#20262E;
+  --ink:#E6EAEF;
+  --ink-2:#A3AEBC;
+  --ink-3:#78838F;
+  --rule:#2B323B;
+  --rule-strong:#3B444F;
+  --accent:#83B3E2;
+  --accent-soft:#1B2836;
+  --good:#63C0A4;
+  --good-soft:#152A26;
+  --bad:#E28A78;
+  --bad-soft:#2E1D19;
+  --warn:#D5B45F;
+  --warn-soft:#2B2617;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.2em;}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px;}
+
+/* ---------- shell ---------- */
+.shell{max-width:1200px;margin:0 auto;padding:0 24px 120px;}
+.cols{display:grid;grid-template-columns:212px minmax(0,1fr);gap:56px;align-items:start;}
+@media (max-width:1040px){
+  .cols{grid-template-columns:minmax(0,1fr);gap:0;}
+  .rail{display:none;}
+}
+main{max-width:74ch;min-width:0;}
+
+/* ---------- masthead ---------- */
+.masthead{padding:72px 0 40px;border-bottom:1px solid var(--rule-strong);margin-bottom:52px;}
+.eyebrow{
+  font-family:var(--f-mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 20px;
+}
+h1{
+  font-family:var(--f-display);font-weight:900;
+  font-size:clamp(38px,6.4vw,62px);line-height:1.14;letter-spacing:.01em;
+  margin:0 0 22px;text-wrap:balance;
+}
+.standfirst{font-size:17px;color:var(--ink-2);max-width:60ch;margin:0 0 28px;}
+.masthead-meta{
+  display:flex;flex-wrap:wrap;gap:10px 28px;
+  font-family:var(--f-mono);font-size:12px;color:var(--ink-3);
+}
+.masthead-meta b{color:var(--ink-2);font-weight:700;}
+
+/* ---------- rail ---------- */
+.rail{position:sticky;top:24px;padding-top:76px;}
+.rail-title{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 14px;
+}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
+.rail a{
+  display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:baseline;
+  text-decoration:none;color:var(--ink-2);font-size:13.5px;line-height:1.5;
+  padding:5px 8px;border-radius:5px;border-left:2px solid transparent;
+}
+.rail a:hover{background:var(--surface-2);color:var(--ink);border-left-color:var(--accent);}
+.rail .n{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);}
+
+/* ---------- sections ---------- */
+section{margin:0 0 84px;scroll-margin-top:20px;}
+.sec-head{display:flex;gap:14px;align-items:baseline;margin:0 0 8px;}
+.sec-n{
+  font-family:var(--f-mono);font-size:12px;font-weight:700;color:var(--accent);
+  letter-spacing:.1em;padding-top:.5em;flex:none;
+}
+h2{
+  font-family:var(--f-display);font-weight:600;
+  font-size:clamp(25px,3.4vw,32px);line-height:1.35;margin:0;text-wrap:balance;
+}
+.sec-lede{color:var(--ink-2);margin:0 0 34px 34px;font-size:15.5px;max-width:58ch;}
+@media (max-width:640px){.sec-lede{margin-left:0;}}
+h3{
+  font-family:var(--f-body);font-weight:700;font-size:17px;line-height:1.6;
+  margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule);
+}
+p{margin:0 0 18px;}
+
+/* ---------- term entries ---------- */
+.terms{display:flex;flex-direction:column;gap:0;margin:0 0 8px;}
+.term{
+  padding:20px 0;border-bottom:1px solid var(--rule);
+  display:grid;grid-template-columns:minmax(0,1fr);gap:6px;
+}
+.term:first-child{border-top:1px solid var(--rule);}
+.term-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;}
+.term-name{font-family:var(--f-display);font-weight:600;font-size:19px;line-height:1.4;}
+.term-gloss{
+  font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);
+  letter-spacing:.03em;padding-top:.2em;
+}
+.term-body{color:var(--ink-2);font-size:15px;}
+.term-body p{margin:0 0 10px;}
+.term-body p:last-child{margin-bottom:0;}
+.term-body strong{color:var(--ink);font-weight:700;}
+code{
+  font-family:var(--f-mono);font-size:.86em;
+  background:var(--surface-2);border:1px solid var(--rule);
+  padding:.1em .38em;border-radius:4px;color:var(--ink);
+  white-space:nowrap;
+}
+
+/* ---------- callouts ---------- */
+.note{
+  background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;padding:16px 20px;margin:24px 0;font-size:14.5px;color:var(--ink-2);
+  box-shadow:var(--shadow);
+}
+.note .note-k{
+  display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:8px;
+}
+.note.bad{border-left-color:var(--bad);}
+.note.bad .note-k{color:var(--bad);}
+.note.good{border-left-color:var(--good);}
+.note.good .note-k{color:var(--good);}
+.note p{margin:0 0 10px;}
+.note p:last-child{margin:0;}
+.note strong{color:var(--ink);}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:24px 0;border:1px solid var(--rule);border-radius:8px;background:var(--surface);}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px;}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.6;}
+thead th{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:400;background:var(--surface-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none;}
+td.num,th.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;}
+tr.hi td{background:var(--accent-soft);}
+tr.hi td:first-child{font-weight:700;}
+
+/* ---------- chips ---------- */
+.chip{
+  display:inline-block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;
+  padding:2px 8px;border-radius:100px;border:1px solid;white-space:nowrap;line-height:1.7;
+}
+.chip.good{color:var(--good);border-color:var(--good);background:var(--good-soft);}
+.chip.bad{color:var(--bad);border-color:var(--bad);background:var(--bad-soft);}
+.chip.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-soft);}
+.chip.flat{color:var(--ink-3);border-color:var(--rule-strong);background:var(--surface-2);}
+
+/* ---------- pipeline diagram ---------- */
+.pipe{
+  background:var(--surface);border:1px solid var(--rule);border-radius:10px;
+  padding:26px 22px;margin:28px 0;box-shadow:var(--shadow);
+}
+.pipe svg{display:block;width:100%;height:auto;}
+.pipe figcaption{
+  font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);
+  margin-top:16px;line-height:1.7;
+}
+
+/* ---------- decision cards ---------- */
+.cards{display:grid;gap:14px;margin:28px 0;}
+.card{
+  background:var(--surface);border:1px solid var(--rule);border-radius:9px;
+  padding:20px 22px;box-shadow:var(--shadow);
+}
+.card-h{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline;margin-bottom:6px;}
+.card-t{font-family:var(--f-display);font-weight:600;font-size:18px;}
+.card-price{
+  font-family:var(--f-mono);font-size:12px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;margin-bottom:10px;
+}
+.card p{margin:0 0 10px;font-size:14.5px;color:var(--ink-2);}
+.card p:last-child{margin:0;}
+.card strong{color:var(--ink);}
+
+/* ---------- rules list ---------- */
+ol.rules{counter-reset:r;list-style:none;margin:24px 0;padding:0;display:flex;flex-direction:column;gap:14px;}
+ol.rules li{
+  counter-increment:r;position:relative;padding-left:38px;font-size:15px;color:var(--ink-2);
+}
+ol.rules li::before{
+  content:counter(r);position:absolute;left:0;top:.15em;
+  width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+  font-family:var(--f-mono);font-size:11px;font-weight:700;
+  display:grid;place-items:center;
+}
+ol.rules strong{color:var(--ink);}
+
+ul.plain{margin:0 0 18px;padding-left:1.25em;color:var(--ink-2);font-size:15px;}
+ul.plain li{margin-bottom:8px;}
+ul.plain strong{color:var(--ink);}
+
+/* ---------- traps ---------- */
+details.trap{
+  border:1px solid var(--rule);border-radius:8px;background:var(--surface);
+  padding:0;margin-bottom:8px;
+}
+details.trap summary{
+  cursor:pointer;padding:13px 18px;font-size:14.5px;list-style:none;
+  display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:baseline;
+}
+details.trap summary::-webkit-details-marker{display:none;}
+details.trap summary .tn{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);}
+details.trap[open] summary{border-bottom:1px solid var(--rule);font-weight:700;}
+details.trap .tb{padding:14px 18px 16px 54px;font-size:14.5px;color:var(--ink-2);}
+details.trap .tb p{margin:0 0 10px;}
+details.trap .tb p:last-child{margin:0;}
+details.trap .tb strong{color:var(--ink);}
+@media (max-width:640px){details.trap .tb{padding-left:18px;}}
+
+/* ---------- glossary quickref ---------- */
+.quick{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0 28px;
+  margin:24px 0;
+}
+.quick div{
+  padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px;color:var(--ink-2);
+}
+.quick b{display:block;font-family:var(--f-mono);font-size:12.5px;color:var(--ink);font-weight:700;}
+
+footer{
+  border-top:1px solid var(--rule-strong);padding-top:28px;margin-top:20px;
+  font-family:var(--f-mono);font-size:12px;color:var(--ink-3);line-height:1.9;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+
+</head>
+<body>
+<div class="shell">
+
+<header class="masthead">
+  <p class="eyebrow">luna-shougi ／ 前提知識の棚卸し</p>
+  <h1>luna-shougi の読み方</h1>
+  <p class="standfirst">自作将棋エンジンとNNUE学習の記録に出てくる用語を、初めて読む人向けに順番に並べたもの。最後まで読むと、いま提案されている方針の中身と、そこで何を選ぶことになるのかが分かる。</p>
+  <div class="masthead-meta">
+    <span>基準日 <b>2026-08-27</b></span>
+    <span>記録 <b>gen1 → gen10</b></span>
+    <span>現在地 <b>対手書き評価 27.4%</b></span>
+    <span>出典 <b>docs/ 9本 + PLAN.md</b></span>
+  </div>
+</header>
+
+<div class="cols">
+
+<nav class="rail" aria-label="目次">
+  <p class="rail-title">目次</p>
+  <ol>
+    <li><a href="#s0"><span class="n">00</span><span>全体像</span></a></li>
+    <li><a href="#s1"><span class="n">01</span><span>将棋エンジンの土台</span></a></li>
+    <li><a href="#s2"><span class="n">02</span><span>探索</span></a></li>
+    <li><a href="#s3"><span class="n">03</span><span>評価関数と点数</span></a></li>
+    <li><a href="#s4"><span class="n">04</span><span>NNUE本体</span></a></li>
+    <li><a href="#s5"><span class="n">05</span><span>学習パイプライン</span></a></li>
+    <li><a href="#s6"><span class="n">06</span><span>測るための言葉</span></a></li>
+    <li><a href="#s7"><span class="n">07</span><span>10世代の実話</span></a></li>
+    <li><a href="#s8"><span class="n">08</span><span>いまの方針と選択</span></a></li>
+    <li><a href="#s9"><span class="n">09</span><span>規律7カ条</span></a></li>
+    <li><a href="#s10"><span class="n">10</span><span>測定の罠 全14件</span></a></li>
+    <li><a href="#s11"><span class="n">11</span><span>ファイル早見表</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ================= 0 ================= -->
+<section id="s0">
+  <div class="sec-head"><span class="sec-n">00</span><h2>全体像 ── エンジンは「探索 × 評価」の掛け算</h2></div>
+  <p class="sec-lede">まずこの1行だけ覚えれば、以降の用語はすべてどちらかの側に置ける。</p>
+
+  <p>将棋エンジンは、突きつめると2つの部品しかない。</p>
+
+  <ul class="plain">
+    <li><strong>探索（search）</strong> ── 「この手を指したら、次はこう、その次はこう」と先を読む部分。読む局面の数が勝負。</li>
+    <li><strong>評価関数（evaluation）</strong> ── 読んだ先の局面を見て「この局面は先手が+300点くらい良い」と<em>1つの数字</em>を返す部分。先は読まない。盤面を見た瞬間の点数だけを答える。</li>
+  </ul>
+
+  <p>探索は評価関数を何百万回も呼ぶ。だから強さは「どれだけ深く読めるか」と「読んだ先を正しく採点できるか」の掛け算になる。<strong>この事業（フェーズ5以降）でやっているのは、後者を手書きのルールからニューラルネットに置き換えること</strong>で、それがNNUEである。</p>
+
+  <figure class="pipe">
+    <svg viewBox="0 0 720 232" role="img" aria-label="教師データ生成から学習、量子化、検証、対局測定までの5段の流れ図">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g font-family="JetBrains Mono, monospace" font-size="11.5" fill="currentColor" color="var(--ink-3)">
+
+        <g color="var(--accent)">
+          <rect x="4" y="16" width="126" height="52" rx="6" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1"/>
+          <text x="67" y="38" text-anchor="middle" fill="var(--accent)" font-weight="700">luna-datagen</text>
+          <text x="67" y="55" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">自己対局→教師</text>
+        </g>
+
+        <g color="var(--rule-strong)"><line x1="134" y1="42" x2="164" y2="42" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/></g>
+
+        <g color="var(--rule-strong)">
+          <rect x="170" y="16" width="126" height="52" rx="6" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+          <text x="233" y="38" text-anchor="middle" fill="var(--ink)" font-weight="700">.bin</text>
+          <text x="233" y="55" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">84 byte / 局面</text>
+        </g>
+
+        <g color="var(--rule-strong)"><line x1="300" y1="42" x2="330" y2="42" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/></g>
+
+        <g color="var(--accent)">
+          <rect x="336" y="16" width="126" height="52" rx="6" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1"/>
+          <text x="399" y="38" text-anchor="middle" fill="var(--accent)" font-weight="700">training.train</text>
+          <text x="399" y="55" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">PyTorch / CUDA</text>
+        </g>
+
+        <g color="var(--rule-strong)"><line x1="466" y1="42" x2="496" y2="42" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/></g>
+
+        <g color="var(--rule-strong)">
+          <rect x="502" y="16" width="126" height="52" rx="6" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+          <text x="565" y="38" text-anchor="middle" fill="var(--ink)" font-weight="700">.nnue</text>
+          <text x="565" y="55" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">量子化済 64MB</text>
+        </g>
+
+        <g color="var(--rule-strong)"><line x1="565" y1="74" x2="565" y2="106" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/></g>
+
+        <g color="var(--warn)">
+          <rect x="470" y="112" width="190" height="46" rx="6" fill="var(--warn-soft)" stroke="currentColor" stroke-width="1"/>
+          <text x="565" y="132" text-anchor="middle" fill="var(--warn)" font-weight="700">ゲート: verify / drift</text>
+          <text x="565" y="148" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">C++と完全一致か・定数ずれ±20点</text>
+        </g>
+
+        <g color="var(--rule-strong)"><line x1="470" y1="135" x2="404" y2="135" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/></g>
+
+        <g color="var(--good)">
+          <rect x="212" y="112" width="186" height="46" rx="6" fill="var(--good-soft)" stroke="currentColor" stroke-width="1"/>
+          <text x="305" y="132" text-anchor="middle" fill="var(--good)" font-weight="700">luna-match</text>
+          <text x="305" y="148" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">直接対決1000局 → Elo / LOS</text>
+        </g>
+
+        <g color="var(--rule-strong)">
+          <path d="M212 135 L120 135 L120 88 L67 88 L67 74" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+        </g>
+        <text x="128" y="176" fill="var(--ink-3)" font-size="10.5">勝ったネットで次世代の教師を作り直す（＝ループ）</text>
+
+        <g color="var(--rule)">
+          <line x1="4" y1="200" x2="716" y2="200" stroke="currentColor" stroke-width="1"/>
+        </g>
+        <text x="4" y="220" fill="var(--ink-3)" font-size="10.5">1周の実費 ── ラベル付け 約24時間 ＋ 学習 32分 ＋ 測定 1000局</text>
+      </g>
+    </svg>
+    <figcaption>この5段が「データ生成 → 学習 → 測定のループ」。PLAN.md がフェーズ6の未完事項として挙げているのはこの輪を回すこと。</figcaption>
+  </figure>
+
+  <div class="note">
+    <span class="note-k">この文書の読み方</span>
+    <p>01〜06 は用語集。07 は「実際に何が起きたか」の年代記で、ここを読むと用語が数字と結びつく。<strong>意思決定に必要なのは 07・08・09 の3つ</strong>で、01〜06 はそこを読むための語彙。</p>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+  <div class="sec-head"><span class="sec-n">01</span><h2>将棋エンジンの土台</h2></div>
+  <p class="sec-lede">フェーズ0〜2で作った部分。もう完成していて、いま議論の対象にはならないが、語彙としては全編に出てくる。</p>
+
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">USI</span><span class="term-gloss">Universal Shogi Interface</span></div>
+      <div class="term-body"><p>エンジンとGUIの間の共通語。標準入出力でテキストをやり取りするだけの単純なプロトコルで、<code>position</code>（局面を教える）、<code>go</code>（考えろ）、<code>bestmove</code>（指し手を返す）、<code>setoption</code>（設定を変える）が主要な命令。<strong>USIさえ喋れば ShogiGUI（Windows）でも ShogiHome（Mac）でも動く</strong>ので、GUIごとの対応は不要。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">SFEN</span><span class="term-gloss">局面の文字列表現</span></div>
+      <div class="term-body"><p>盤面・持ち駒・手番・手数を1行の文字列で表したもの。チェスのFENの将棋版。<code>data/*.sfen</code> は教師データと同じ局面をこの形式で並べたファイルで、<strong>Python側の計算結果をC++エンジンに投げ返して突き合わせる</strong>ときに使う。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">合法手生成</span><span class="term-gloss">move generation</span></div>
+      <div class="term-body"><p>その局面で指せる手を全部列挙する処理。将棋では二歩・打ち歩詰め・行きどころのない駒・王手放置など除外ルールが多く、<strong>プロジェクト中で最もバグが出やすい場所</strong>とされている（PLAN.md フェーズ1）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">perft</span><span class="term-gloss">performance test</span></div>
+      <div class="term-body"><p>「初期局面からN手すべて指し尽くすと、末端に何通りの局面があるか」を数えるテスト。公開されている正解値と<strong>1ノードでも違えば合法手生成にバグがある</strong>。正しさを機械的に保証できる数少ない手段。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">Zobristハッシュ</span><span class="term-gloss">局面の64bit指紋</span></div>
+      <div class="term-body"><p>盤面＋持ち駒＋手番から一意な64ビットの値を作る手法。駒を1つ動かすたびに乱数をXORするだけで更新できるのが利点。<strong>置換表の鍵</strong>と<strong>千日手判定</strong>、そしてNNUEの差分計算の検証（後述）に使われる。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">局面 / 指し手 / 手番</span><span class="term-gloss">position / move / side to move</span></div>
+      <div class="term-body"><p>「局面」は盤の状態一式。「手番」はいま指す側。この事業で重要なのは、<strong>点数は常に「手番側から見て」表す</strong>という約束（手番視点）。先手が+300良い局面でも、後手番なら評価は −300 と返る。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+  <div class="sec-head"><span class="sec-n">02</span><h2>探索 ── 読む側の語彙</h2></div>
+  <p class="sec-lede">フェーズ3と6。すでに +456 Elo と +173 Elo を出して完成している。NNUEの話にも「探索が実際に評価する局面」という形で常に出てくる。</p>
+
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">alpha-beta 探索</span><span class="term-gloss">αβ枝刈り</span></div>
+      <div class="term-body"><p>全部読むのをやめる基本技法。「相手がこの手を選ぶ以上、こちら側の残りは読んでも結論が変わらない」枝を切る。<strong>結論は全部読んだ場合と完全に一致する</strong>（＝安全な枝刈り）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">反復深化</span><span class="term-gloss">iterative deepening</span></div>
+      <div class="term-body"><p>深さ1で読む → 深さ2で読む → 深さ3…と、浅い探索から順にやり直す。無駄に見えるが、浅い探索の結果で手の順番を良くできるので、いきなり深く読むより速い。時間切れになっても直前の深さの答えが残るのも利点。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">静止探索</span><span class="term-gloss">quiescence search</span></div>
+      <div class="term-body"><p>規定の深さに達しても、取り合いの途中なら<strong>取り合いだけ最後まで読み切る</strong>延長。これがないと「飛車を取った直後」で読みを止めて大喜びしてしまう（水平線効果）。<strong>この事業で「消費者」と呼ばれるのはこの部分</strong>。教師データとの分布のずれは、ここで起きていた（07参照）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">stand-pat</span><span class="term-gloss">静止探索の据え置き値</span></div>
+      <div class="term-body"><p>静止探索で「何も取らずにこのままでいい」と判断するときの基準値で、<strong>そこで呼ばれる静的評価そのもの</strong>。探索木ダンプで「standpat 78% / prune 22%」と出るのは、評価が呼ばれた場所の内訳。<strong>評価関数の顧客はほぼここ</strong>だと考えてよい。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">置換表</span><span class="term-gloss">transposition table / TT</span></div>
+      <div class="term-body"><p>「この局面はもう調べた、結果はこれ」を記憶する巨大なハッシュ表。将棋は手順前後で同じ局面に到達することが多いので効果が大きい。既定64MB、USIオプション <code>USI_Hash</code> で変える。<strong>Lazy SMP で全スレッドが共有する唯一のもの</strong>。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">ムーブオーダリング</span><span class="term-gloss">MVV-LVA / killer / history</span></div>
+      <div class="term-body"><p>良さそうな手から先に読む工夫。αβは「良い手を先に読むほど切れる枝が増える」性質があるので、順番が速度を決める。MVV-LVA＝安い駒で高い駒を取る手を優先、killer＝同じ深さで前に切れた手、history＝過去によく効いた手。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">枝刈り一式</span><span class="term-gloss">null move / LMR / futility / LMP / PVS</span></div>
+      <div class="term-body">
+        <p>αβと違い、<strong>間違えることがある</strong>省略。間違えると壊れるのが「正しさ」ではなく「強さ」なので、採用基準は理屈ではなく自己対局の勝率になる。</p>
+        <p><strong>null move</strong>＝相手にタダで1手渡してもまだ勝っているなら読むまでもない。<strong>futility</strong>＝静的評価がαから大きく離れていて、駒を取らない手では埋まらない差なら読まない。<strong>LMR</strong>＝手の順番で後ろのほうは浅く読み、良さそうならその分読み直す。<strong>PVS</strong>＝最善手はもう見つかっている前提でゼロ幅で確認する。</p>
+        <p>フェーズ6でこの一式を入れた効果が <strong>+456 Elo</strong>。深さ6のノード数が6100万から15万になった（413分の1）。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">SEE</span><span class="term-gloss">Static Exchange Evaluation / 静的交換評価</span></div>
+      <div class="term-body"><p>ある升で取り合いが起きたとき、<strong>探索せずに</strong>最終的な損得を数える近似計算。「SEEが負になる取りは読まない」が静止探索の爆発を止めた最大の要因。持ち駒が多い局面では、損な取り合いを始める手が持ち駒の数だけ存在するため。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">delta pruning</span><span class="term-gloss">静止探索の足切り</span></div>
+      <div class="term-body"><p>その手で取れる駒＋成りの得を全部足してもαに届かないなら読まない。余裕（マージン）は歩1枚ぶん。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">Lazy SMP</span><span class="term-gloss">怠惰な並列探索</span></div>
+      <div class="term-body"><p>全スレッドが<strong>同じ局面を最初から最後まで各自で探索する</strong>だけの並列化。木を分割して配らない。共有するのは置換表だけで、誰かが早く証明したことがそこに載って他が得をする。設計としては雑だが、コード量が桁違いに少なく競合バグが入りにくい。8スレッドで <strong>+173 Elo</strong>。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">ノード / nps / seldepth</span><span class="term-gloss">探索の単位</span></div>
+      <div class="term-body"><p>ノード＝探索が訪れた局面の数。nps＝1秒あたりのノード数（速度）。seldepth＝実際に到達した最大の深さ（静止探索の延長を含む）。<strong>枝刈りを入れると nps は落ちてノード数が激減する</strong>のが正常で、フェーズ6では nps 150万→85万、ノード数413分の1。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">固定深さ / 固定時間</span><span class="term-gloss">測定条件</span></div>
+      <div class="term-body">
+        <p><strong>固定深さ</strong>＝「必ず深さ6まで読む」。評価関数の質だけを比べたいときに使う。評価が重くて遅くなっても、読む量が同じなので不利にならない。</p>
+        <p><strong>固定時間</strong>（<code>--movetime 200</code>）＝「1手200ms」。実戦に近く、<strong>評価が遅いことのペナルティが乗る</strong>。NNUEは手書きよりノードが1.8倍必要で NPS 0.58倍なので、固定時間に切り替えると数字は今より悪くなる。いまの世代比較は全部<strong>固定深さ</strong>で測っている。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+  <div class="sec-head"><span class="sec-n">03</span><h2>評価関数と点数の単位</h2></div>
+  <p class="sec-lede">「点数」がいくつも違う単位で出てくるのがこのプロジェクトの読みにくさの主因。ここだけは丁寧に。</p>
+
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">手書き評価</span><span class="term-gloss">hand-written / handmade</span></div>
+      <div class="term-body"><p>フェーズ4で作った、人間がルールを書いた評価関数。<strong>駒割</strong>（どの駒が何点か）＋<strong>PST</strong>＋玉の安全度＋持ち駒ボーナス＋手番ボーナス。<strong>いまだにNNUEより強く、打倒対象であり、同時に教師データのラベルを付ける先生でもある。</strong></p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">駒割 / PST</span><span class="term-gloss">material / piece-square table</span></div>
+      <div class="term-body"><p>駒割＝駒の種類ごとの固定点数の合計。PST＝「同じ金でも5九にいるのと5五にいるのでは価値が違う」を81マス分の表で表したもの。手書き評価はこの2つが本体。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">エンジンの点数単位</span><span class="term-gloss">歩 = 90</span></div>
+      <div class="term-body"><p>このエンジンでは<strong>歩1枚が90点</strong>。だから「残差300点」は歩3枚強の誤差という意味。詰みは <strong>±32000付近</strong>の特別な値（詰みスコア）で表す。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">ポナンザ定数</span><span class="term-gloss">600</span></div>
+      <div class="term-body">
+        <p>点数を勝率に換算するときの尺度。<code>勝率 = sigmoid(score / 600)</code>。600点差でだいたい勝率73%、という換算式の「600」がこれ。<strong>ネットワークが学習しているのは「点数÷600」に相当する量</strong>で、出力を16で割るとエンジンの点数になる。</p>
+        <p>この定数を1200や1800に上げると、ネットが大きい点数を出せる余地が広がる。<strong>実際に試して、盤上で3組ともはっきり負けた（LOS 100%）。</strong>シグモイドを引き伸ばすと決着帯の分解能が犠牲になり、そちらの損が重い。600のまま確定。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">勝率空間 / 点数空間</span><span class="term-gloss">損失をどこで測るか</span></div>
+      <div class="term-body">
+        <p><strong>勝率空間</strong>＝点数をsigmoidで0〜1に潰してから誤差を測る。+2000と+3000は指し手としてほぼ同じなので、その差を学習させて容量を無駄にしないための設計。<strong>これが最初の3世代の損失。</strong></p>
+        <p><strong>点数空間</strong>＝点数そのもので誤差を測る。勝率空間では3300点より上の勾配がほぼ0になるので、<strong>ネットが大きい点数を出す動機を失う</strong>。gen4で足したHuber項はこちら側から尾部に圧力をかけるもの（05参照）。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">negamax と定数ずれ</span><span class="term-gloss">なぜ「平均のずれ」だけが危険か</span></div>
+      <div class="term-body"><p>評価は手番視点なので、探索は1手ごとに符号を反転させながら値を積む（negamax）。ここで評価関数に<strong>一定のオフセット</strong>が乗っていると、木の全ノードに撒かれた手番ボーナスとして効き、<strong>指し手が変わる</strong>。ばらつき（sd）は平均されて消えるが、平均のずれは消えない。gen1では −34.6点のずれを取り除いただけで <strong>+62 Elo</strong> あった。<strong>およそ1点 ≒ 1.8 Elo</strong>という換算はここから来ている。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+  <div class="sec-head"><span class="sec-n">04</span><h2>NNUE本体</h2></div>
+  <p class="sec-lede">ネットワークの形と、それをCPUで速く動かすための仕掛け。</p>
+
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">NNUE</span><span class="term-gloss">Efficiently Updatable Neural Network</span></div>
+      <div class="term-body"><p>「効率的に更新できるニューラルネット」。GPUではなく<strong>CPUで、探索の中から何百万回も呼ばれる</strong>ことを前提に設計された評価関数。名前の「更新できる」が本質で、下の差分計算のこと。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">HalfKP</span><span class="term-gloss">特徴量の設計</span></div>
+      <div class="term-body">
+        <p>入力の作り方。<strong>「自玉のマス」×「玉以外の駒がどこにあるか」の組</strong>を1つの特徴とする。K＝King（玉）、P＝Piece。「Half」は自玉基準と相手玉基準で2セット作るから。</p>
+        <p>玉の位置ごとに別の特徴になるので、「玉が6八にいるときの、相手の桂が7七にいることの意味」を個別に学習できる。これがHalfKPが効く理由。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">BonaPiece</span><span class="term-gloss">1548種の駒表現</span></div>
+      <div class="term-body"><p>「どの種類の駒が、どこにあるか」を通し番号にしたもの。盤上の駒は種類ごとに81マス分、持ち駒は1枚ごとに1スロット。玉は含まない（取られないし、位置はもうKの側に入っている）。<strong>結果、どの局面でも立つ特徴はちょうど38個</strong>（40枚 − 玉2枚）。駒を取っても盤から持ち駒に移るだけなので数は変わらない。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">ネットワークの形</span><span class="term-gloss">HalfKP → 256×2 → 512 → 32 → 32 → 1</span></div>
+      <div class="term-body">
+        <p>入力次元は 81 × 1548 = <strong>125,388</strong>。これを256次元に落とす層（特徴変換器）を自玉基準・相手玉基準の2本持ち、繋げて512次元。以降 32 → 32 → 1 と小さくして、最後に1つの点数を出す。</p>
+        <p><strong>512次元の前半が手番側、後半が相手側。</strong>これがネットワークに手番を伝える唯一の経路なので、C++とPythonで順序が食い違うと静かに壊れる。</p>
+        <p>特徴変換器の重みだけで 125,388 × 256 × 2バイト ≒ 64MB。<code>.nnue</code> ファイルのサイズはほぼこれ。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">アキュムレータ / 差分計算</span><span class="term-gloss">incremental update</span></div>
+      <div class="term-body">
+        <p>NNUEが速い理由。1手指しても立っている特徴は<strong>2〜3個しか変わらない</strong>ので、38行を足し直す代わりに数行の加減算で済む。この「途中結果」を持っておく配列がアキュムレータ。</p>
+        <p>実装上の要点2つ。<strong>Zobristキーで検証する</strong>ので、手を戻して別の手を指しても古いエントリは必ず弾かれる（探索側に約束事が要らない）。そして<strong>玉が動いたときはその側を作り直す</strong> ── HalfKPの特徴は全部玉のマスで索引されているため差分では済まない。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">量子化</span><span class="term-gloss">quantization ── float → int</span></div>
+      <div class="term-body">
+        <p>学習はfloat、対局は整数。速度のために整数演算にするが、<strong>両者が完全に一致していないと「学習中に測った強さ」と「実際に指すネットの強さ」が別物になる</strong>。</p>
+        <p>特徴変換器は int16（スケール127）、L1・L2は int8（スケール64）、出力層はスケール 9600/127。int8にスケール64だと表せるのは ±1.98 までなので、<strong>学習中に毎ステップ重みをクリップする</strong>（学習後にやると覚えたことが失われる）。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">丸め誤差の定数化とバイアス補正</span><span class="term-gloss">この事業で最初に見つかったバグ</span></div>
+      <div class="term-body">
+        <p>重み1個の丸めに偏りはない。しかしL1・L2は<strong>密</strong>で、どの局面でも全入力を使う。だから丸め誤差は「局面によってほとんど動かない活性ベクトル」に対する固定の線形汎関数、つまり<strong>ほぼ定数</strong>になる。特徴変換器はこうならない（局面ごとに違う38行を足すのでノイズとして均される）。</p>
+        <p>そして 03 のとおり、定数は評価関数にとって一番まずい形の誤差。<strong>対策は測って引くこと</strong> ── 数千局面をfloatモデルと量子化ネットの両方に通し、各層の平均誤差をその層の整数バイアスから引く。バイアスはint32で桁が余っているので無料。gen1でこれを直して <strong>+62 Elo</strong>。<strong>エンジンのコードは1行も変わっていない。</strong></p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">SIMD / AVX2 / NEON</span><span class="term-gloss">推論カーネル</span></div>
+      <div class="term-body"><p>1命令で複数の数値をまとめて計算する仕組み。Windows（x86）は AVX2、Mac（arm64）は NEON。<code>eval</code> コマンドで <code>(avx2)</code> と出れば有効、<code>(scalar)</code> なら有効になっていない。<strong>CIはmacOSジョブでNEONカーネルを検証している</strong>（開発機がx86なので、NEONの自動テストはこれだけ）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">verify / drift</span><span class="term-gloss">2つのゲート</span></div>
+      <div class="term-body">
+        <p><strong><code>training/verify.py</code></strong> ── 同じ局面をPythonの整数演算とC++の整数演算に通し、<strong>点数が完全一致する</strong>ことを見る。近い、ではなく一致。両方とも整数なので、正当に丸めが違う余地はない。<strong>ただしこれは量子化後どうしの比較で、同じ偏りが両側に入っていれば「完全一致」と出る。</strong></p>
+        <p><strong><code>training/drift.py</code></strong> ── 元のfloatモデルと量子化ネットの差を測る。整数にする以上ずれるので完全一致では測れず、<strong>見るのは平均だけ</strong>。sdが数十点あるのは int8 が仕事をしているだけで正常。現行の閾値は <strong>±20点</strong>（≒36 Elo）、測る局面は探索木6000局面。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+  <div class="sec-head"><span class="sec-n">05</span><h2>学習パイプライン</h2></div>
+  <p class="sec-lede">教師データの作り方と、いま「つまみ」と呼ばれているハイパーパラメータ。08の意思決定はここの語彙で書かれている。</p>
+
+  <h3>教師データ</h3>
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">教師データ / ラベル</span><span class="term-gloss">.bin ── 84 byte / 局面</span></div>
+      <div class="term-body">
+        <p>「この局面の正解はこの点数」の組。作り方は <code>luna-datagen</code> でエンジンに自己対局させ、<strong>各局面で深さNの探索が出した点数を正解として記録する</strong>。加えてその対局の最終的な勝敗も一緒に入る。</p>
+        <p>1サンプル84バイト<strong>固定長</strong>。これのおかげでN番目へのシークが掛け算1回になり、止めた学習を「データのどこまで読んだか」まで含めて再開できる。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">蒸留</span><span class="term-gloss">distillation ── この構図の名前</span></div>
+      <div class="term-body"><p>「先生（深い探索＋手書き評価）の答えを、生徒（ネットワーク）に真似させる」構図。<strong>先生の間違いも一緒に覚える</strong>のが弱点。深さ4で作ったgen1が失敗したのは、深さ4の探索スコアが「手書き評価をそのまま4手伝播させたもの」でしかなく、劣化コピーにしかならなかったから。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">--depth / --nodes</span><span class="term-gloss">教師の質と生成速度</span></div>
+      <div class="term-body">
+        <p>ラベルを付けるときの探索の深さと、1手あたりのノード数上限（先に来たほうで打ち切る）。<strong>深いほど教師の質は上がるが、指数的に遅くなる。</strong></p>
+        <div class="tw"><table><thead><tr><th>深さ</th><th class="num">生成速度</th><th class="num">1000万局面あたり</th></tr></thead>
+        <tbody>
+          <tr><td>4</td><td class="num">1.64 M局面/時</td><td class="num">約6時間</td></tr>
+          <tr><td>6</td><td class="num">0.54 M局面/時</td><td class="num">約19時間</td></tr>
+          <tr><td>8</td><td class="num">0.13 M局面/時</td><td class="num">約77時間</td></tr>
+        </tbody></table></div>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">--score-limit</span><span class="term-gloss">検閲 ── 3世代を負けさせた既定値</span></div>
+      <div class="term-body">
+        <p>「点数がこの値を超える局面は教師に記録しない」上限。既定 <strong>3000</strong>。狙いは「もう決着している局面は静的評価の教師として意味が薄く、出力レンジを引っ張るだけ」。</p>
+        <p><strong>そのとおりになった ── 引っ張られなかったので、ネットの出力がそこで止まった。</strong>gen2の教師の最大ラベルは2998で、gen2が出せる最大点数は2634。ところが<strong>探索が実際に評価する局面の37.5%は|score| 3000以上</strong>にあり、そこでの残差は手書き評価の3.3〜4.7倍。この文書群で「検閲（censored）」と呼ばれるのはこの現象。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">ホールドアウト</span><span class="term-gloss">holdout ── 未知の局面</span></div>
+      <div class="term-body"><p>学習に使わず、汎化を測るためだけに取っておくデータ。<strong>1つのファイルを分割してはいけない</strong> ── 自己対局の連続する局面は同じ対局の似た局面なので、分割すると同じ対局が両側に入る。<code>--seed</code> を変えた別実行で作る。<strong>そして規律4のとおり、datagenの既定値で作ってはいけない</strong>（教師と同じ検閲を受け継いでしまう）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">探索木ダンプ / 混合</span><span class="term-gloss">treedump / tree mix ── 最大の効果</span></div>
+      <div class="term-body">
+        <p><strong>教師と消費者がずれていた</strong>という発見への対処。教師は「対局に現れた局面」、消費者は「静止探索のstand-patが評価する局面」で、両者の点数分布はまったく違う（教師の40%が|score|600未満、探索木では18%）。</p>
+        <p>そこで <code>training/treedump.py</code> で<strong>探索が実際に歩いた局面を採取</strong>し、教師データの一部をそれで置き換える。比率30%が最良（0%と100%はどちらも負ける ── <strong>探索木の局面は教師の補正であって代替ではない</strong>）。</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>いま「つまみ」と呼ばれているもの</h3>
+  <p>ハイパーパラメータ＝学習の設定値。この事業では4本を総当たりして、<strong>4本ともnullか負けだった</strong>（08で効いてくる事実）。</p>
+
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">--lambda-score</span><span class="term-gloss">既定 0.7 <span class="chip flat">効果なし</span></span></div>
+      <div class="term-body"><p>目標を「探索スコア」と「実際の勝敗」のどちらに寄せるか。1.0でスコアのみ、0.0で勝敗のみ。<strong>0.7でも1.0でも盤上は同じ（+0.7 ± 21.4）</strong>と測定済み。「ここにEloは無い」。教師超えを狙う段階になったら下げる検討をする、という位置づけ。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">--score-weight</span><span class="term-gloss">Huber項の重み <span class="chip good">gen4で+313 Elo</span></span></div>
+      <div class="term-body">
+        <p><strong>この事業で最初に針を動かしたもの。</strong>勝率空間の二乗誤差とは別に、<strong>点数そのものへのHuber項</strong>を損失に足す。Huber損失＝小さい誤差は二乗、大きい誤差は絶対値で測る損失関数（外れ値に引っ張られにくい）。</p>
+        <p><code>loss = mean((sigmoid(pred) − target)²) + w × huber(pred, clamp(score, ±16000)/600)</code></p>
+        <p>ポナンザ定数を上げずに尾部だけに圧力をかけられるのが利点。<strong>0.03 → 0.3 で効き続け、1.0 で平ら。</strong>0.003のような小さすぎる値は<strong>0より悪い</strong>（尾部を動かすには足りず決着帯だけ汚す）ので、単調ではない。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">混合比</span><span class="term-gloss">30% <span class="chip good">+196 Elo</span></span></div>
+      <div class="term-body"><p>教師のうち探索木由来の局面の割合。<strong>30%が最良で、100%は30%に363 Elo負ける。</strong>0%との差は総数によって ±25 〜 +196 まで動き、単調でもない。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">ステップ / エポック / バッチ / lr</span><span class="term-gloss">学習の実行単位</span></div>
+      <div class="term-body"><p>バッチ＝一度に処理する局面数（既定8192）。ステップ＝重みを1回更新すること。エポック＝データを1周すること。lr＝学習率（既定1e-3）。フルスケール1421万局面で100,000ステップ＝57エポック、RTX 4070 Ti で <strong>32分</strong>。<strong>学習は安い。高いのはデータ生成のほう</strong>（24時間）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">チェックポイントと再開</span><span class="term-gloss">bit-exact resume</span></div>
+      <div class="term-body"><p>学習を任意のタイミングで止め、続きから再開すると<strong>止めずに回した場合とビット単位で同じ重みになる</strong>。重みだけでなくオプティマイザの状態・データの読み位置・乱数状態まで保存している。1個385MB（重み128MB + Adamの状態256MB）。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">SparseAdam / EmbeddingBag</span><span class="term-gloss">疎な勾配</span></div>
+      <div class="term-body"><p>特徴変換器は1局面につき38行しか触らないので勾配が疎。密な勾配にすると「数千個の数字を変えるために毎ステップ3200万個の重みを書き直す」ことになる。実測で17倍の差。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+  <div class="sec-head"><span class="sec-n">06</span><h2>測るための言葉</h2></div>
+  <p class="sec-lede">この事業で最も高くついた学習は「何を物差しにするか」だった。指標を4つ作って4つとも外し、5回目でようやく当たっている。</p>
+
+  <h3>盤上の指標（信頼できる）</h3>
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">Elo</span><span class="term-gloss">レート差</span></div>
+      <div class="term-body"><p>勝率をレート差に換算したもの。目安：+100 Eloで勝率64%、+200で76%、+400で91%。<strong>この事業の感覚値</strong>としては、+25は「小さいが本物」、+150〜200は「大きい」、+456（フェーズ6の枝刈り）は「桁違い」。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">信頼区間（±）</span><span class="term-gloss">誤差幅</span></div>
+      <div class="term-body"><p><code>Elo +195.5 +/- 39.8 (95%)</code> の後半。<strong>レート差がこの幅より小さければ、その変更は測れていない</strong>（勝ったように見えるだけ）。誤差幅は対局数の<strong>平方根でしか縮まない</strong> ── 100局で±75なら、±25にするには900局要る。1000局で概ね ±21〜25。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">LOS</span><span class="term-gloss">Likelihood of Superiority</span></div>
+      <div class="term-body"><p>「本当に強くなっている確率」。<strong>95%を超えるまで採用の判断をしない</strong>のが規則。</p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">直接対決 vs 対手書き勝率</span><span class="term-gloss">物差しが壊れていた話 <span class="chip bad">要注意</span></span></div>
+      <div class="term-body">
+        <p><strong>この事業で最も重要な方法論上の発見。</strong>世代Aと世代Bを比べるのに、それぞれの「対手書き評価の勝率」を比べるやり方をずっと使っていた。</p>
+        <p><strong>gen4以降の帯域では、この測り方が世代間の差を3〜5倍に潰す。</strong>実際に121 Eloの改善が「p=0.90（差なし）」として出た。原因は、両者が共通の相手（手書き評価）に大きく負けている領域では勝率の差が圧縮されるため。</p>
+        <p><strong>いまは「直前の世代との直接対決1000局」で測る。</strong>対手書き勝率は<em>目標</em>の指標（50%を目指す）であって、<em>比較</em>の道具ではない。この発見で過去の判定が1つ撤回されている（gen5は「差なし」ではなく +164.5 Elo だった）。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">luna-match の前提</span><span class="term-gloss">測定条件</span></div>
+      <div class="term-body"><p>開始局面は平手から<strong>ランダム4手</strong>進めた局面（決定的なエンジン同士だと毎回同じ棋譜になるため）。<strong>同じ開始局面を先後入れ替えて2局</strong>指して有利不利を相殺する。千日手は4回目の同一局面で引き分け、連続王手の千日手は掛けた側の負け、入玉宣言は27点法で検証、320手で引き分け打ち切り。<strong>審判にエンジン本体の合法手生成をそのまま使っている</strong>ので、ルール判定が食い違わない。</p></div>
+    </div>
+  </div>
+
+  <h3>残差の指標（参考にしかならない）</h3>
+  <div class="terms">
+    <div class="term">
+      <div class="term-h"><span class="term-name">残差sd</span><span class="term-gloss">resid ── 予測とラベルのずれ</span></div>
+      <div class="term-body"><p>「ネットが出した点数 − 正解ラベル」の標準偏差を、エンジンの単位（歩=90）で表したもの。小さいほど正確。<strong>外部の基準（手書き評価の残差）と比べられる唯一の数字。</strong></p></div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">決着帯 / 尾部 / 詰み帯</span><span class="term-gloss">deciding / tail / mate</span></div>
+      <div class="term-body">
+        <p>局面を正解ラベルの大きさで3つに切る、この事業の共通語彙。</p>
+        <ul class="plain" style="margin-top:4px">
+          <li><strong>決着帯</strong>（<code>resid deciding</code>）＝ |label| &lt; 600。まだ勝負がついていない、指し手が最も変わりやすい帯。</li>
+          <li><strong>尾部</strong>（<code>tail out</code>）＝ |label| ≥ 3000 の局面で実際に出した点数の中央値。「大きい点数を出せるか（＝出力レンジ）」を見る。</li>
+          <li><strong>詰み帯</strong>＝ |label| ≥ 31000。<strong>ここは全評価が同じように駄目</strong>で、静的評価に±32000を期待するほうが間違い。だから指標からは除く。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">合格基準</span><span class="term-gloss">詰みを除いた、探索木上の残差sd</span></div>
+      <div class="term-body">
+        <p>いま採用されている唯一の残差指標。採用の条件は<strong>「gen1（1-399-0）とgen2（4-394-2）の両方を説明できること」</strong>で、これを満たしたのは6通りの読み方のうち1つだけだった（手書き818 / gen1 2593 / gen2 2423 ── 盤上のElo −800 と −759 と同じ形）。</p>
+        <p><strong>ただし gen10 で天井に来た。</strong>gen10は全列で gen7 より悪い数字を出しながら、盤上では gen7 に勝っている。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">訓練loss / val loss</span><span class="term-gloss"><span class="chip bad">合格判定に使えない</span></span></div>
+      <div class="term-body">
+        <p><strong>訓練lossは学習が成功したかを何も言わない。</strong>gen1は訓練lossが1000分の1まで落ちて、対局では399/400負けた。</p>
+        <p>val loss（未知の局面での同じ損失）も、<strong>世代間では比較できない</strong> ── <code>--score-weight</code> を入れた世代は損失に項が1つ多いため。比較していいのは残差と盤上だけ。</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-h"><span class="term-name">足切りであって合格証ではない</span><span class="term-gloss">残差指標の位置づけ</span></div>
+      <div class="term-body"><p>この事業で確立した読み方。<strong>ここで手書き評価に負けるネットは盤上でも負ける</strong>（gen1で確認）。<strong>ここで勝っても盤上で勝つとは限らない</strong>（gen2で確認）。つまり「19時間を捨てずに済む」ための足切りとしてだけ裏付けがある。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+  <div class="sec-head"><span class="sec-n">07</span><h2>10世代の実話</h2></div>
+  <p class="sec-lede">用語が数字と結びつく場所。ここを読むと、08で何が争点なのかが分かる。</p>
+
+  <p>目標は<strong>「固定深さ6で、手書き評価に勝率50%」</strong>。それを超えるまで、教師データのラベル付けは手書き評価にやらせる（負けている評価でラベルを付けると、弱いラベルを蒸留するgen1の構図に戻るため）。</p>
+
+  <h3>対手書き評価の勝率（目標の指標）</h3>
+  <div class="tw"><table>
+    <thead><tr><th>世代</th><th>変えたもの</th><th class="num">結果（400局）</th></tr></thead>
+    <tbody>
+      <tr><td>gen1</td><td>深さ4・235万局面</td><td class="num">1-399-0 &nbsp;(0.3%)</td></tr>
+      <tr><td>gen2</td><td>深さ6・1124万局面</td><td class="num">4-394-2 &nbsp;(1.3%)</td></tr>
+      <tr><td>gen3</td><td><code>--score-limit</code> 3000→16000</td><td class="num">7-393-0 &nbsp;(1.8%)</td></tr>
+      <tr><td>（定数）</td><td>ポナンザ定数 1200 / 1800</td><td class="num">盤上で否定（3組ともLOS 100%）</td></tr>
+      <tr class="hi"><td>gen4</td><td>損失にHuber項、w=0.03</td><td class="num">39-361-0 &nbsp;(9.8%)</td></tr>
+      <tr><td>gen5</td><td>同じ項を w=0.3 に</td><td class="num">45-353-2 &nbsp;(11.5%)</td></tr>
+      <tr><td>gen6-mix10</td><td>教師の10%を探索木の局面に</td><td class="num">37-361-2 &nbsp;(9.5%)</td></tr>
+      <tr><td>gen6-mix30</td><td>教師の30%を探索木の局面に</td><td class="num">49-346-5 &nbsp;(12.9%)</td></tr>
+      <tr><td>gen7</td><td>混合30% ＋ 点数項 w=0.3</td><td class="num">99-300-1 &nbsp;(24.9%)</td></tr>
+      <tr class="hi"><td>gen10</td><td>探索木を gen7 の探索から採り直し</td><td class="num">107-288-5 &nbsp;(<strong>27.4%</strong>)</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note bad">
+    <span class="note-k">この表は世代を比べる道具ではない</span>
+    <p>06で述べたとおり、対手書き勝率はgen4以降の帯域で世代間の差を3〜5倍に潰す。<strong>上の表は「50%までどれだけあるか」を見るためだけのもの。</strong></p>
+  </div>
+
+  <h3>直接対決で測り直した尺度（gen4 を 0 とする）</h3>
+  <div class="tw"><table>
+    <thead><tr><th>世代</th><th class="num">Elo</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>gen2</td><td class="num">−308.3</td><td>gen2 と gen3 は −4.2 ± 21.5 で並ぶ（差は無い）</td></tr>
+      <tr><td>gen3</td><td class="num">−304.1 ± 30.4</td><td>上限を上げただけでは動かなかった</td></tr>
+      <tr class="hi"><td>gen4</td><td class="num">0</td><td>基準点。点数項 w=0.03</td></tr>
+      <tr><td>gen6-mix10</td><td class="num">+120.7 ± 22.7</td><td>混合10%</td></tr>
+      <tr><td>gen5</td><td class="num">+164.5 ± 23.9</td><td>点数項 w=0.3（混合なし）</td></tr>
+      <tr><td>gen6-mix30</td><td class="num">+196.0 ± 24.9</td><td>混合30%</td></tr>
+      <tr><td>gen7</td><td class="num">+310.1</td><td>両方入れた（足し算だが満額ではない ── 69%が残った）</td></tr>
+      <tr><td>gen8</td><td class="num">+310 と同じ</td><td>w=1.0。gen7 に −9.0 ± 21.2 で並ぶ ── <strong>この項はここで平ら</strong></td></tr>
+      <tr class="hi"><td>gen10</td><td class="num">+339.4</td><td>混合30%、木を gen7 の探索から採り直し（<strong>1回転 +29.3 ± 21.4</strong>）</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>3つの転換点</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-h"><span class="card-t">① 原因の特定 ── 教師が検閲されていた</span><span class="chip good">解決済み</span></div>
+      <p>gen1・gen2・gen3 が3回続けて負けた。原因は <code>--score-limit 3000</code> の既定値で、<strong>探索が実際に評価する局面の37.5%が教師データに1つも入っていなかった</strong>。</p>
+      <p>これが見えなかった理由が重要で、<strong>ホールドアウトも同じ既定値で作られていたので、同じ検閲を受け継いでいた</strong>。存在しない帯域は、どう切り直しても見えない。指標を3つ作って3つとも外したのは、切り方が悪かったのではなく<strong>測っていたデータに答えが入っていなかった</strong>から。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="card-t">② 効いた一手 ── 点数空間のHuber項</span><span class="chip good">+313 Elo</span></div>
+      <p>上限を上げただけの gen3 は動かなかった（<strong>データにあっても損失が使わない</strong> ── sigmoidの勾配が3300点より上でほぼ0）。そこで損失に点数空間の項を足したのが gen4。<strong>変えたのはコマンドラインのフラグ1つ。</strong>出力のsdが898（gen2）から2574まで戻った（手書きは2770）。</p>
+      <p>取引の形は「<strong>尾部を買って決着帯を払う</strong>」。決着帯の残差は598→745に悪化したが、尾部は3.4倍買えた。ポナンザ定数を上げる案は同じ形で<strong>払いすぎて</strong>盤上で負けている。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="card-t">③ 最大の効果 ── 教師の分布を探索木に寄せる</span><span class="chip good">+196 Elo</span></div>
+      <p>「<strong>教師は対局に現れた局面、消費者は静止探索のstand-pat</strong>」というずれの発見。gen3は<em>ラベルの帯</em>を直したが、<em>局面そのもの</em>は手つかずだった。</p>
+      <p>探索木から採った局面で教師の30%を置き換えると、<strong>決着帯（1087→784）と尾部の精度が両方上がり、出力レンジは動かない</strong>。点数項のような綱引きになっていない。一変数の対照実験で「効いたのは局面であって、結果項を外したことではない」ことも確認済み。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+  <div class="sec-head"><span class="sec-n">08</span><h2>いまの方針と、あなたが決めること</h2></div>
+  <p class="sec-lede">ここが本題。現在地は対手書き 27.4%、目標50%まで <strong>169 Elo</strong>。</p>
+
+  <h3>状況を3行で</h3>
+  <ul class="plain">
+    <li><strong>つまみは尽きた。</strong>点数項 0.3→1.0（−9.0）、混合比 30→100%（−363）、30→0%（+25）、lambda 0.7→1.0（+0.7）── <strong>4本ともnullか負け</strong>。gen7のレシピは試した範囲で局所最適。</li>
+    <li><strong>ループは回る。ただし薄い。</strong>「最新世代の探索から木を採り直して学習し直す」を1回転させて <strong>+29.3 Elo / 24時間</strong>。元の混合が同じ24時間で +145〜196 だったのに対し5〜7分の1。</li>
+    <li><strong>このループだけでは50%に届かない。</strong>+29/回転なら6回転＝6日。しかも gen10 の木は gen7 の木よりさらに教師に近いはずなので、<strong>次の回転はもっと薄いと見るのが自然</strong>。</li>
+  </ul>
+
+  <div class="note">
+    <span class="note-k">「ループが薄くなる」の理由</span>
+    <p>混合が効いた理由には2つの説があった。<strong>(a) 尾部の供給</strong>（探索木は大きい点数の局面を多く含む）と、<strong>(b) 消費者との分布の一致</strong>（ネット自身が歩く局面で学ぶ）。gen10の実験は両者に<em>逆の</em>予測をさせる設計だった。</p>
+    <p>結果は <strong>+29</strong>。<strong>両方とも部分的に正しい</strong> ── 元の +145〜196 の大半は gen4 の極端な木が供給した尾部で、分布の一致そのものが上乗せするのは +29 分でしかなかった。gen7の探索はgen4の6割弱のノードで済むほど穏やかになっていて、供給するものが減っている。</p>
+  </div>
+
+  <h3>選択肢と値札</h3>
+  <p>「値段」はすべて実測または実測に基づく見積もり。判定は<strong>すべて盤上（直接対決1000局）</strong>で行う。</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-h"><span class="card-t">A ── ループをもう1〜数回転</span><span class="chip good">実証済み</span></div>
+      <div class="card-price">+29.3 ± 21.4 Elo ／ 1回転あたり約24時間（ラベル付け）</div>
+      <p>gen10 の探索から木を採り直して gen11 を作る。<strong>いま唯一「測ってあって、確実に正の値が出る」道。</strong>手順は確立していて追加の設計判断がない。</p>
+      <p><strong>難点</strong>：次の回転はさらに薄いと予想されている。50%到達には単独では足りない。<strong>使いどころ</strong>：他の軸と並行して回す「地の利」。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="card-t">B ── 深さ8で教師を作り直す</span><span class="chip warn">値札は付いた／保留中</span></div>
+      <div class="card-price">+24.7 ± 21.5 Elo（39万局面のパイロット）／ フル生成 77時間</div>
+      <p>ラベルを付ける探索を深さ6から8に上げる。パイロットでは<strong>本物だが小さい</strong>（区間 [+3, +46]）。</p>
+      <p><strong>見送りの理由3つ</strong>：(1) パイロットは<strong>順位は当てるが勝ち幅は当てない</strong>（混合は 541 → 25 → 145〜196 と動いた）。(2) 77時間は、フルスケールで測った最大のレバー（+196、+165）と釣り合う額であって、+25 の候補に払う額ではない。(3) 同じ時間で実証済みのレバーを反復できる。</p>
+      <p><strong>この軸は閉じていない。</strong>探索が速くなるか機械が空いたら戻る。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="card-t">C ── ハイパーパラメータをさらに振る</span><span class="chip bad">閉じた</span></div>
+      <div class="card-price">4本測って4本ともnullか負け</div>
+      <p><strong>次に動かせるのはデータであって、ハイパーパラメータではない</strong>というのが現時点の結論。ここに時間を使う根拠はない。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="card-t">D ── 未着手の軸（文書に記載あり・未測定）</span><span class="chip flat">未測定</span></div>
+      <div class="card-price">値札なし</div>
+      <p><strong>ネットワークを大きくする</strong> ── 「1層目を広くするのが一番強くなる方向だが、メモリ帯域を全部そこで使う」と <code>docs/nnue.md</code> にある。256はもともと控えめな選択で、まだ上げていない。<strong>データ以外で残っている最大の未探索軸。</strong></p>
+      <p><strong>枝刈りマージンの再調整</strong> ── 190/180/200 は手書き評価のスケールで調整された値。NNUEのノード数1.8倍と整合はするが、<strong>持ち時間対局に切り替えるときに対照実験する</strong>と保留されている（固定深さでは勝率に効かないため）。</p>
+      <p><strong>ponder / 定跡</strong> ── PLAN.md フェーズ6の未完事項。ponderは探索スレッドが入ったので障害はない。ただし<strong>「評価関数が手書きに勝ってから」</strong>と明示的に後回しにされている。</p>
+    </div>
+  </div>
+
+  <h3>決めることは実質3つ</h3>
+  <ol class="rules">
+    <li><strong>50%というゲートを維持するか。</strong>これは「教師データを自前のネットで作るモード（<code>--eval-file</code>）に切り替えていいか」の線引き。負けている評価でラベルを付けると gen1 の構図に戻る、という理由で引かれている。<strong>維持するなら、それまでの手段はAとBとDに限られる。</strong></li>
+    <li><strong>Aを回し続けるか、Dに賭けるか。</strong>Aは +29/日の確実な積み上げ、Dは値札のない未探索。169 Elo をAだけで埋めるには6日以上かかり、しかも逓減する。<strong>「Aを回しながらDのパイロットを取る」が定石的な折衷。</strong></li>
+    <li><strong>いつ持ち時間対局に切り替えるか。</strong>いまの数字は全部<strong>固定深さ</strong>のもの。NNUEは NPS 0.58倍・ノード数1.8倍なので、<strong>実戦条件に移すと数字は下がる</strong>。切り替えのタイミングで枝刈りマージンの再調整（D）が必要になる。</li>
+  </ol>
+
+  <div class="note good">
+    <span class="note-k">意思決定に使える換算表</span>
+    <p><strong>1点 ≒ 1.8 Elo</strong>（gen1で34.6点の定数除去が +62 Elo）。<strong>1000局の誤差幅 ≒ ±21〜25 Elo</strong>。つまり <strong>+25未満の改善は1000局では見えない</strong>。<strong>学習は32分、ラベル付けは24時間</strong> ── 高いのは常にデータ生成のほうで、レシピを変えるだけの実験は安い。</p>
+  </div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section id="s9">
+  <div class="sec-head"><span class="sec-n">09</span><h2>規律7カ条</h2></div>
+  <p class="sec-lede">全部、失敗して払った代金と引き換えに書かれている。新しい実験を提案するときはこれに照らす。</p>
+
+  <ol class="rules">
+    <li><strong>判定は盤上のみ。</strong>残差指標は、gen1・gen2・gen4 の3点を説明できるもの（いまは詰みを除いた探索木残差sd）だけを参考に使う。</li>
+    <li><strong>対局の前に <code>drift</code> と <code>verify</code>。</strong>量子化のバグはクラッシュしない。少し弱くなるだけで、学習側からもエンジン側からも単独では気づけない。</li>
+    <li><strong><code>info string eval nnue</code> の確認。</strong>50%近い結果が出たらまず読み込み失敗を疑う ── 失敗したエンジンは手書き評価のまま対局を続けるので、<strong>失敗した測定は「勝率50%・有意差なし」という無害な顔で返ってくる</strong>。実際にこれで400局を無駄にした記録がある。</li>
+    <li><strong>ホールドアウトはdatagen既定値で作らない。</strong>教師と同じ検閲を受け継ぐ。探索木ダンプを使う。driftも同じで、探索木6000局面で回す。</li>
+    <li><strong>世代間の比較は直前の世代との直接対決で測る。</strong>対手書き勝率は<em>目標</em>の指標であって、<em>比較</em>の道具ではない。gen4以降の帯域では差が3〜5倍に潰れ、121 Eloの改善が「p=0.90」として出た。</li>
+    <li><strong>合格ラインを「既存の区間の外」で書かない。</strong>新しい側の不確かさを数えない検定になる。二標本で比べるか、直接対決で測る。</li>
+    <li><strong>量子化の書き出しと drift の手続きを先に固定する。</strong>補正元は「学習ファイルに探索木の行があればその行、無ければファイル全体」を65,536局面。<strong>測定を見てから選ばない</strong>（過去に1回、測定集合に自由度を合わせてしまった）。閾値は ±20点（≒36 Elo）。<strong>この幅より小さい差を直接対決で主張するときは、両者の定数ずれを引き比べること。</strong></li>
+  </ol>
+
+  <div class="note">
+    <span class="note-k">実験設計の作法（明文化されていないが一貫している）</span>
+    <p><strong>変数は1度に1つ。</strong>gen4は「変えたのはコマンドラインのフラグ1つ」、gen10は「変数は『どちらの探索が歩いた木か』だけ」と明記されている。</p>
+    <p><strong>対照は「既存のもの」ではなく「同じ条件で作り直したもの」。</strong>深さ8の実験では、対照に既存の深さ6ラベルではなく<em>同じ局面の深さ6付け直し</em>を使っている（自己対局は置換表を1局持ち越すので、同じ深さでも付け直しと一致しない）。</p>
+    <p><strong>予測を先に書く。</strong>gen10では2つの仮説が逆の予測をすることを事前に文書化してから測っている。</p>
+  </div>
+</section>
+
+<!-- ================= 10 ================= -->
+<section id="s10">
+  <div class="sec-head"><span class="sec-n">10</span><h2>測定の罠 全14件</h2></div>
+  <p class="sec-lede">docs全体に散らばって通し番号が振られている、実際に踏んだ罠の一覧。同じ穴を掘らないためのチェックリスト。</p>
+
+  <details class="trap"><summary><span class="tn">01</span><span>EvalFileの読み込み失敗は「互角」という顔で返ってくる</span></summary>
+    <div class="tb"><p>読み込みに失敗したエンジンは手書き評価のまま対局を続ける。「手書き 対 手書き」＝勝率50%＝有意差なし。<strong>対策</strong>：毎回 <code>info string eval nnue</code> を確認する。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">02</span><span>bashのバックスラッシュ</span></summary>
+    <div class="tb"><p>引用符のないWindowsパスのバックスラッシュをbashが食う。<strong>対策</strong>：パスはスラッシュ区切りで書く。これで400局を無駄にした。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">03</span><span><code>eval</code> コマンドの出力は評価関数によって形が違う</span></summary>
+    <div class="tb"><p>手書き評価とNNUEで出力フォーマットが変わるので、パースするスクリプトが黙って壊れる。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">04</span><span>訓練データの局面で汎化を測っていた</span></summary>
+    <div class="tb"><p>1つのファイルを分割してホールドアウトにすると、自己対局の連続局面が両側に入る。<strong>対策</strong>：<code>--seed</code> を変えた別実行で作る。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">05</span><span>検証lossは学習と同じ目標で測る</span></summary>
+    <div class="tb"><p>違う目標で測ると訓練lossと直接比較できず、過学習の判断ができない。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">06</span><span><code>go</code> の直後に <code>quit</code> を送ると探索が中断される</span></summary>
+    <div class="tb"><p>スクリプトから点数を取ろうとして、探索が終わる前にプロセスを閉じてしまう。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">07</span><span>混ぜる比率を計算していなかった</span></summary>
+    <div class="tb"><p>データを混ぜる実験で、実際の構成比を数えずに進めた。<strong>対策</strong>：混合比は先に数字で決めて、総数を固定する。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">08</span><span>ラベルの付け直しは自己対局のラベルと一致しない</span></summary>
+    <div class="tb"><p>自己対局は置換表を1局持ち越すので、<strong>同じ深さで付け直しても同じ点数にならない</strong>。<strong>対策</strong>：対照は必ず「同じ手続きで付け直したもの」にする。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">09</span><span>検閲されたホールドアウトは検閲を報告しない</span></summary>
+    <div class="tb"><p>教師と同じ既定値で作ったホールドアウトは同じ帯域を欠く。<strong>存在しない帯域は、どう切り直しても見えない。</strong>3世代ぶんの誤診の根本原因。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">10</span><span><code>baseline.py</code> の帯域表は「局面数、残差」の順である</span></summary>
+    <div class="tb"><p>列の順を取り違えて、局面数4197を残差sdとして読んでいた（実際の残差sdは10239）。文書に誤った数字が入り、後から訂正された。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">11</span><span><code>drift.py</code> の平均は、測る局面集合で10点動く</span></summary>
+    <div class="tb"><p>閾値が8点だったので、集合を変えるだけで合否がひっくり返った。<strong>対策</strong>：測る集合を固定（探索木6000局面）し、閾値を実力に合わせて ±20 に広げた。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">12</span><span><code>treedump.py</code> が <code>.sites</code> の出力パスを集計で上書きしていた</span></summary>
+    <div class="tb"><p>出力ファイルが黙って消える種類のバグ。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">13</span><span>学習に使えないデータを「測定用」と書いてあるツールが作る</span></summary>
+    <div class="tb"><p><code>luna-datagen --label</code> は <code>result</code>（対局結果）を全サンプル0で書く。探索木から採った局面には周りに対局が無いため。<strong>そのまま学習に混ぜると「全部引き分け」として読まれ、しかもその歪みは尾部で最大になる。</strong><strong>対策</strong>：<code>RESULT_UNKNOWN</code> の印を足し、そのサンプルだけ結果項を外した（エンジンは触っていない）。</p></div></details>
+
+  <details class="trap"><summary><span class="tn">14</span><span>ベンチマークをファイルの先頭で取ってはいけない</span></summary>
+    <div class="tb"><p>先頭だけを測ると偏る。散らして測ること。<strong>ただし gen10 で続きがある</strong>：局面は散らしたが<strong>開始局面が50本しか無かった</strong>ため、詰みの割合を7.5%と見積もって実測14.7%だった。<strong>散らすべき階層を間違えないこと。</strong>この事業のprobeは3回とも外していて、外し方は毎回「標本の取り方」である。</p></div></details>
+</section>
+
+<!-- ================= 11 ================= -->
+<section id="s11">
+  <div class="sec-head"><span class="sec-n">11</span><h2>ファイル早見表</h2></div>
+  <p class="sec-lede">どこに何が書いてあるか。</p>
+
+  <h3>読むべきドキュメント</h3>
+  <div class="tw"><table>
+    <thead><tr><th>ファイル</th><th>中身</th></tr></thead>
+    <tbody>
+      <tr><td class="num">PLAN.md</td><td>フェーズ0〜6の全体計画と進捗。最初に読む</td></tr>
+      <tr class="hi"><td class="num">docs/nnue-plan.md</td><td><strong>いまの方針。次に何をどの順でやるか</strong></td></tr>
+      <tr><td class="num">docs/nnue.md</td><td>NNUEの手順書（データ生成→学習→量子化→検証→測定）</td></tr>
+      <tr><td class="num">docs/measuring.md</td><td><code>luna-match</code> の使い方と、Elo・LOSの読み方</td></tr>
+      <tr><td class="num">docs/search.md</td><td>探索の枝刈りとLazy SMP</td></tr>
+      <tr><td class="num">docs/nnue-gen1.md</td><td>第1世代の敗因（深さ4）と量子化バイアスの発見</td></tr>
+      <tr><td class="num">docs/nnue-gen2.md</td><td>第2世代 ── 指標を3回作り直して3回とも外した記録</td></tr>
+      <tr class="hi"><td class="num">docs/nnue-search-distribution.md</td><td><strong>原因究明。<code>--score-limit</code> という真犯人</strong></td></tr>
+      <tr class="hi"><td class="num">docs/nnue-gen4.md</td><td><strong>初めて針が動いた実験（点数項）</strong></td></tr>
+      <tr class="hi"><td class="num">docs/nnue-tree-mix.md</td><td><strong>最大の効果（分布の混合）と、物差しが壊れていた発見</strong></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>ツール</h3>
+  <div class="quick">
+    <div><b>luna-shougi</b>エンジン本体。USIを喋る</div>
+    <div><b>luna-datagen</b>自己対局して教師データを作る。<code>--label</code> で既存局面にラベルだけ付け直す</div>
+    <div><b>luna-match</b>2エンジンを連続対局させ、勝率とEloとLOSを出す</div>
+    <div><b>bench</b>6局面を固定深さで探索。1スレッドのときだけ意味がある</div>
+    <div><b>training.train</b>学習。止める・再開するとビット単位で同じ重みになる</div>
+    <div><b>training.serialize</b>チェックポイントを <code>.nnue</code> に書き出す（バイアス補正込み）</div>
+    <div><b>training.verify</b>Python と C++ の点数が完全一致するか</div>
+    <div><b>training.drift</b>floatモデルと量子化ネットの平均のずれ</div>
+    <div><b>training.baseline</b>手書き評価を同じデータに通して基準値を出す</div>
+    <div><b>training.treedump</b>探索が実際に歩いた局面を採取する</div>
+    <div><b>training.holdout</b>検閲されていないホールドアウトを作る</div>
+  </div>
+
+  <h3>数字の目安</h3>
+  <div class="quick">
+    <div><b>.nnue</b>64 MB</div>
+    <div><b>チェックポイント</b>385 MB（重み128＋Adam 256）</div>
+    <div><b>教師データ</b>84 byte / 局面（10M局面で840MB）</div>
+    <div><b>フルスケール学習</b>1421万局面・100,000step で 32分（RTX 4070 Ti）</div>
+    <div><b>ラベル付け</b>約24時間 / 1世代ぶん</div>
+    <div><b>1000局の誤差幅</b>±21〜25 Elo</div>
+    <div><b>点数とEloの換算</b>1点 ≒ 1.8 Elo</div>
+    <div><b>歩の価値</b>90点</div>
+  </div>
+</section>
+
+<footer>
+  出典 ── PLAN.md ／ docs/nnue-plan.md ／ docs/nnue.md ／ docs/measuring.md ／ docs/search.md ／ docs/nnue-gen1.md ／ docs/nnue-gen2.md ／ docs/nnue-search-distribution.md ／ docs/nnue-gen4.md ／ docs/nnue-tree-mix.md<br>
+  数値はすべて上記文書の実測値。08「選択肢と値札」のうちDの各項は、文書に記載はあるが未測定であることを明示している。
+</footer>
+
+</main>
+</div>
+</div>
+</body>
+</html>
