@@ -183,12 +183,14 @@ def main(argv: list[str]) -> int:
     finally:
         engine.close()
 
-    total, sites = summarise(tsv)
+    # Not `sites`: that name is the path this writes to, and rebinding it to
+    # the tally leaves subsample() below trying to write_text a Counter.
+    total, tally = summarise(tsv)
     if total == 0:
         print(f"nothing was recorded in {tsv}", file=sys.stderr)
         return 1
     print(f"\n{total:,} records in {tsv}  (one in {args.stride} of the evaluations taken)")
-    for site, count in sites.most_common():
+    for site, count in tally.most_common():
         print(f"  {site:>10} {count:>9,}  {100 * count / total:5.1f}%")
 
     kept = subsample(tsv, sfen, sites, args.positions, args.seed)
