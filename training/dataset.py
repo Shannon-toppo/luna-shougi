@@ -38,6 +38,17 @@ SAMPLE_DTYPE = np.dtype(
 SAMPLE_BYTES = SAMPLE_DTYPE.itemsize
 assert SAMPLE_BYTES == 84, f"record layout drifted from the engine's: {SAMPLE_BYTES}"
 
+# `result` is +1, 0 or -1 for a game black won, drew or lost. This is a fourth
+# value meaning "there was no game": positions lifted out of a search tree by
+# `luna-datagen --label` have none, and the engine writes 0 for them, which the
+# loss would otherwise read as a draw. src/datagen/datagen.cpp says so in as
+# many words -- "fine to measure against and wrong to train on".
+#
+# Nothing in the engine writes this. It is stamped on by whatever builds a
+# mixed file (see docs/nnue-plan.md step 2), and training/model.py drops the
+# result term for the samples carrying it.
+RESULT_UNKNOWN = 2
+
 
 @dataclass
 class Batch:
