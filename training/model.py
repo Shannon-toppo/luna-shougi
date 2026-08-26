@@ -150,6 +150,8 @@ def loss(
     score is what makes the first generation of a net trainable at all — the
     result of one game is a very noisy label — and leaning on the result is
     what eventually lets a net become better than the search that taught it.
+    Samples marked dataset.RESULT_UNKNOWN have no game to weigh, and are
+    trained at an effective lambda of 1 whatever this says.
 
     `score_weight` adds a Huber term on the raw output against the raw score.
     It defaults to 0, which is exactly the loss the first three generations
@@ -190,7 +192,15 @@ def loss(
     predicted_win = torch.sigmoid(prediction)
     score_win = torch.sigmoid(stm_score / PONANZA_CONSTANT)
     result_win = (result * sign + 1.0) / 2.0
-    target = lambda_score * score_win + (1.0 - lambda_score) * result_win
+
+    # A sample carrying dataset.RESULT_UNKNOWN came out of a search tree and
+    # has no game around it. Blending a result into its target would teach the
+    # network that every position the search ever looked at was a draw, which
+    # for a won position is a lie of half a win rate. Those samples are trained
+    # on the score alone; the rest are unchanged, so a file without the
+    # sentinel gives the same arithmetic this function had before.
+    blend = torch.where(result.abs() > 1.0, torch.ones_like(result), result.new_full((), lambda_score))
+    target = blend * score_win + (1.0 - blend) * result_win
     total = ((predicted_win - target) ** 2).mean()
 
     if score_weight:
