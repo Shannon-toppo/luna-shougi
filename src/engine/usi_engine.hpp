@@ -46,7 +46,10 @@ GoParams ParseGoParams(const std::string& line);
 // search — a new position, an option, a new game, quitting — stops it first.
 class UsiEngine {
  public:
-  UsiEngine();
+  // `executable_path` is argv[0], and is only used to find a network sitting
+  // next to the engine. Empty means "look in the working directory only",
+  // which is what the tests want and what a caller with nothing to pass gets.
+  explicit UsiEngine(std::string executable_path = {});
   ~UsiEngine();
   UsiEngine(const UsiEngine&) = delete;
   UsiEngine& operator=(const UsiEngine&) = delete;
@@ -75,6 +78,11 @@ class UsiEngine {
   std::vector<std::string> HandleEval() const;
   std::vector<std::string> HandleBench(const std::string& line);
 
+  // Loads `value`, or the hand-written evaluation if it is empty, and returns
+  // what to tell the GUI. Shared by "setoption EvalFile" and by the default
+  // applied at "isready", so that the two cannot drift apart.
+  std::vector<std::string> LoadEvalFile(const std::string& value, bool from_default);
+
   void StartSearch(const SearchLimits& limits);
   // Asks the search to finish and waits for it. Safe to call when none is
   // running.
@@ -98,6 +106,15 @@ class UsiEngine {
   std::function<void(const std::string&)> output_;
   std::mutex output_mutex_;
   std::vector<std::string> pending_;
+
+  // Where the engine's own executable lives, for finding a network beside it.
+  // Empty when the caller did not say.
+  std::string executable_dir_;
+
+  // Whether the GUI has said anything about EvalFile. Until it has, "isready"
+  // applies the option's advertised default; after it has, the GUI's word
+  // stands -- including an empty one, which is how a GUI says hand-written.
+  bool eval_file_chosen_ = false;
 
   bool quit_requested_ = false;
 };
