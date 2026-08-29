@@ -46,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
                              "win-rate loss. 0, the default, is the loss the first three "
                              "generations used. Non-zero pulls the output range back out to "
                              "where the search needs it; see training/model.py")
+    parser.add_argument("--ft-dim", type=int, default=model_module.FT_DIM,
+                        help="feature transformer width per perspective. The engine has to be "
+                             "built for the same number (-DLUNA_TRANSFORMED_DIM) or it will "
+                             "refuse the exported file")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--chunk-samples", type=int, default=1 << 20,
                         help="samples read at a time and shuffled together")
@@ -73,7 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
 # Arguments that decide the shape of the run rather than how it is driven.
 # Changing one of these on a resume changes what is being trained, so they are
 # taken from the checkpoint unless they were given again explicitly.
-_STRUCTURAL = ("data", "batch_size", "seed", "chunk_samples")
+_STRUCTURAL = ("data", "batch_size", "seed", "chunk_samples", "ft_dim")
 
 
 def merge_with_checkpoint(args, saved: dict, given: set[str]) -> argparse.Namespace:
@@ -137,7 +141,7 @@ def main(argv: list[str]) -> int:
     torch.manual_seed(args.seed)
     np.random.seed(args.seed & 0xFFFFFFFF)
 
-    net = model_module.HalfKP().to(device)
+    net = model_module.HalfKP(ft_dim=args.ft_dim).to(device)
     # Two optimizers because the feature transformer's gradient is sparse and
     # everything else's is not. SparseAdam only touches the rows a batch
     # actually used; plain Adam would rewrite all 32 million every step.

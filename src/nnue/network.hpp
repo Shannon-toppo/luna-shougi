@@ -15,11 +15,32 @@ namespace luna::nnue {
 
 // The network: HalfKP -> 256 per perspective -> 512 -> 32 -> 32 -> 1.
 //
-// Small on purpose. A wider first layer is where most of the strength in a
-// modern net comes from, but it is also where all of the memory traffic is,
-// and 256 is enough to be clearly stronger than a hand-written evaluation
-// while still fitting the feature transformer in 64MB.
-constexpr int kTransformedDim = 256;
+// Small on purpose, and 256 is enough to be clearly stronger than a
+// hand-written evaluation while keeping the feature transformer at 64MB.
+//
+// The width is a build option rather than a plain constant so that two
+// widths can be compiled from one tree and played against each other. It has
+// to be a compile-time constant either way: ReadFrom checks the file against
+// it and refuses a network of a different shape, so a 512 binary cannot read
+// a 256 network and the comparison has to be run as two executables.
+//
+// What a wider first layer costs was measured rather than assumed (bench 9,
+// identical node counts, a 256 net zero-padded to 512 so that both binaries
+// evaluate the same numbers):
+//
+//   256 -> 512 transformed dims    0.86x nps, 0.84x with eight games running
+//   32  -> 64  L1 outputs          0.90x nps
+//
+// Which says the older note here -- that the first layer is where all the
+// memory traffic goes -- was wrong at this size. Doubling the L1 outputs adds
+// the same 16k multiply-accumulates as doubling the transformer does and
+// costs almost as much, so the bill is the dense L1 arithmetic (~12%) and not
+// the transformer's memory traffic (~5%). The transformer is updated
+// incrementally, which is what makes it cheap.
+#ifndef LUNA_TRANSFORMED_DIM
+#define LUNA_TRANSFORMED_DIM 256
+#endif
+constexpr int kTransformedDim = LUNA_TRANSFORMED_DIM;
 constexpr int kL1In = kTransformedDim * 2;
 constexpr int kL1Out = 32;
 constexpr int kL2In = kL1Out;
@@ -40,6 +61,24 @@ constexpr int kL3In = kL2Out;
 //   output layer         biases int32 at C*kFvScale, weights int8 at
 //                        C*kFvScale/127, so the int32 output is the float
 //                        times C*kFvScale
+//
+// One scale for both hidden layers turned out to be one too few. Measured
+// across 43 checkpoints, L1 and L2 want opposite things:
+//
+//   max|L1 weight|  0.12 .. 0.82    a third of the range, 1.7 bits wasted
+//   max|L2 weight|  0.25 .. 1.9844  pinned at the ceiling in 28 of the 43
+//
+// So L1 is quantized more coarsely than it needs to be while L2 is quantized
+// as finely as it can be and still wants more. Giving L1 a scale of 128 halves
+// its rounding error and costs nothing, because no checkpoint has ever come
+// near 127/128 there. L2 is left alone: halving its limit would clip most of
+// the networks that exist.
+//
+// Which scale L1 is on is a property of the file, not of this build, and it
+// is written in the header. Generation 0 is every network built before this
+// -- the header's spare word was zero in all of them, which is what makes
+// them still readable here rather than merely still parseable. Nets whose
+// recorded results are in docs/ can go on playing.
 //
 // C is the trainer's Ponanza constant: the network learns a win rate whose
 // argument is a score divided by C, and the quantizer folds C into the output
@@ -68,6 +107,13 @@ constexpr int kWeightScale = 1 << kWeightScaleBits;
 constexpr int kHiddenBiasScale = kActivationScale * kWeightScale;  // 8128
 constexpr int kFvScale = 16;
 
+// L1's weight scale, indexed by the file's scale generation. L2 and the
+// output layer are the same in every generation, so this array is the whole
+// difference between them.
+constexpr int kScaleGenerationNb = 2;
+constexpr int kL1WeightScaleBits[kScaleGenerationNb] = {6, 7};
+constexpr uint32_t kCurrentScaleGeneration = 1;
+
 // The evaluation is clamped here so that a broken or wildly extrapolating net
 // can never produce something the search would read as a forced mate.
 constexpr int kMaxEvalScore = 16000;
@@ -82,7 +128,7 @@ constexpr int kMaxEvalScore = 16000;
 //   16  4   transformed dimensions
 //   20  4   L1 outputs
 //   24  4   L2 outputs
-//   28  4   reserved, 0
+//   28  4   scale generation
 //
 // then, in order: ft bias, ft weights, L1 bias, L1 weights, L2 bias, L2
 // weights, L3 bias, L3 weights. Weight matrices are row-major by output.
@@ -93,6 +139,12 @@ inline constexpr char kFileMagic[8] = {'L', 'U', 'N', 'A', 'N', 'N', 'U', 'E'};
 // lives in the quantized output layer, so a file built at any value reads and
 // scores correctly here. Bumping the version only broke the older networks for
 // no reason. The version is for changes to the layout above.
+//
+// Splitting L1 onto its own scale did not bump it either, for the same reason
+// and by design: the word at 28 was reserved and written as zero, so an old
+// file already says "generation 0" and reads correctly. Bumping the version
+// would have made this engine reject every network whose result is written
+// down in docs/, which is a comparison lost for nothing.
 constexpr uint32_t kFileVersion = 1;
 constexpr size_t kHeaderBytes = 32;
 
@@ -147,6 +199,12 @@ struct Weights {
   AlignedBuffer<int32_t> l2_bias;    // [kL2Out]
   AlignedBuffer<int8_t> l3_weight;   // [kL3In]
   AlignedBuffer<int32_t> l3_bias;    // [1]
+
+  // Which scale l1_weight and l1_bias are on; an index into
+  // kL1WeightScaleBits, taken from the file. Zero is the right default and
+  // not just a convenient one: it is what every network written before the
+  // split says, and what a hand-built one gets.
+  uint32_t scale_generation = 0;
 
   // All zeros, which evaluates every position as a draw. Tests fill it in;
   // ReadFrom calls it before reading.

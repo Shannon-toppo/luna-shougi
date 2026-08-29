@@ -9,11 +9,12 @@ Two things here exist only because of what happens after training:
     would be clamped there anyway. Training with the clamp means the network
     learns inside the range it will actually run in.
 
-  - the hidden weights are clipped after every step. int8 at a scale of 64
-    holds 127/64 and no more, so a weight that grows past that is a weight the
+  - the hidden weights are clipped after every step. int8 at a scale of s
+    holds 127/s and no more, so a weight that grows past that is a weight the
     engine cannot represent. Clipping during training costs a little accuracy;
     clipping afterwards costs whatever the network had learned to do with
-    those weights.
+    those weights. L1 and L2 are on different scales and so have different
+    limits; see below.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from . import features
+from . import features, quantize
 
 FT_DIM = 256
 L1_OUT = 32
@@ -58,12 +59,19 @@ L2_OUT = 32
 # what made those three matches possible on one binary.
 PONANZA_CONSTANT = 600.0
 
-# int8 weights at a scale of 64 for the hidden layers, and at
-# PONANZA_CONSTANT * 16 / 127 for the output layer. Derived rather than
-# written out, so that changing the constant cannot leave this behind: a stale
-# limit here clips the output weights to the wrong range and the model quietly
-# trains against a ceiling the engine does not have.
-HIDDEN_WEIGHT_LIMIT = 127.0 / 64.0
+# int8 weights: L1 at whatever scale the current generation puts it on, L2 at
+# 64, the output layer at PONANZA_CONSTANT * 16 / 127. All three derived rather
+# than written out, so that changing a constant cannot leave one behind: a
+# stale limit here clips to the wrong range and the model quietly trains
+# against a ceiling the engine does not have.
+#
+# L1 and L2 differ because they turned out to want opposite things -- L1 was
+# using a third of its range while L2 sat on the ceiling. src/nnue/network.hpp
+# has the measurement. Training under this narrower L1 limit is what makes a
+# generation-1 export exact; a checkpoint from before it has to be exported at
+# generation 0, and quantize.quantize's clip count is what says so.
+L1_WEIGHT_LIMIT = 127.0 / (1 << quantize.L1_WEIGHT_SCALE_BITS[quantize.CURRENT_SCALE_GENERATION])
+L2_WEIGHT_LIMIT = 127.0 / quantize.WEIGHT_SCALE
 OUTPUT_WEIGHT_LIMIT = 127.0 / (PONANZA_CONSTANT * 16.0 / 127.0)
 
 
@@ -110,8 +118,8 @@ class HalfKP(nn.Module):
     @torch.no_grad()
     def clip_weights(self) -> None:
         """Keep every weight inside what the quantized engine can hold."""
-        self.l1.weight.clamp_(-HIDDEN_WEIGHT_LIMIT, HIDDEN_WEIGHT_LIMIT)
-        self.l2.weight.clamp_(-HIDDEN_WEIGHT_LIMIT, HIDDEN_WEIGHT_LIMIT)
+        self.l1.weight.clamp_(-L1_WEIGHT_LIMIT, L1_WEIGHT_LIMIT)
+        self.l2.weight.clamp_(-L2_WEIGHT_LIMIT, L2_WEIGHT_LIMIT)
         self.out.weight.clamp_(-OUTPUT_WEIGHT_LIMIT, OUTPUT_WEIGHT_LIMIT)
 
 

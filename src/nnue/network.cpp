@@ -35,8 +35,8 @@ bool WriteBuffer(std::ostream& out, const AlignedBuffer<T>& buffer) {
   return static_cast<bool>(out);
 }
 
-uint8_t Clamp8(int32_t value) {
-  const int32_t shifted = value >> kWeightScaleBits;
+uint8_t Clamp8(int32_t value, int scale_bits) {
+  const int32_t shifted = value >> scale_bits;
   if (shifted < 0) return 0;
   if (shifted > kActivationScale) return static_cast<uint8_t>(kActivationScale);
   return static_cast<uint8_t>(shifted);
@@ -62,6 +62,7 @@ void Weights::Allocate() {
   std::memset(l2_bias.data(), 0, l2_bias.Bytes());
   std::memset(l3_weight.data(), 0, l3_weight.Bytes());
   std::memset(l3_bias.data(), 0, l3_bias.Bytes());
+  scale_generation = 0;
 }
 
 Weights& Network::Parameters() {
@@ -106,7 +107,18 @@ bool Network::ReadFrom(std::istream& in, std::string& error) {
     }
   }
 
+  // Unlike the dimensions above, a generation this build does not know is not
+  // a shape mismatch that a differently-built binary would accept -- it is a
+  // file from a newer engine, and there is nothing to fall back to.
+  const uint32_t generation = ReadU32(header + 28);
+  if (generation >= kScaleGenerationNb) {
+    error = "unknown quantization scale generation " + std::to_string(generation) +
+            "; this build knows 0.." + std::to_string(kScaleGenerationNb - 1);
+    return false;
+  }
+
   if (!weights_.Allocated()) weights_.Allocate();
+  weights_.scale_generation = generation;
 
   const bool ok = ReadBuffer(in, weights_.ft_bias) && ReadBuffer(in, weights_.ft_weight) &&
                   ReadBuffer(in, weights_.l1_bias) && ReadBuffer(in, weights_.l1_weight) &&
@@ -131,6 +143,7 @@ bool Network::WriteTo(std::ostream& out) const {
   WriteU32(header + 16, static_cast<uint32_t>(kTransformedDim));
   WriteU32(header + 20, static_cast<uint32_t>(kL1Out));
   WriteU32(header + 24, static_cast<uint32_t>(kL2Out));
+  WriteU32(header + 28, weights_.scale_generation);
   out.write(reinterpret_cast<const char*>(header), kHeaderBytes);
 
   return WriteBuffer(out, weights_.ft_bias) && WriteBuffer(out, weights_.ft_weight) &&
@@ -162,13 +175,17 @@ int Network::Propagate(const Accumulator& acc, Color side_to_move) const {
   alignas(kSimdAlignment) std::array<int32_t, kL1Out> l1{};
   Affine(
       weights_.l1_weight.data(), weights_.l1_bias.data(), input.data(), l1.data(), kL1In, kL1Out);
+  // L1's shift is the file's, L2's is fixed. Reading it out of the weights on
+  // every evaluation rather than baking it in is 32 shifts by a value already
+  // in a register, and bench shows no difference.
+  const int l1_scale_bits = kL1WeightScaleBits[weights_.scale_generation];
   alignas(kSimdAlignment) std::array<uint8_t, kL1Out> a1{};
-  for (int i = 0; i < kL1Out; ++i) a1[i] = Clamp8(l1[i]);
+  for (int i = 0; i < kL1Out; ++i) a1[i] = Clamp8(l1[i], l1_scale_bits);
 
   alignas(kSimdAlignment) std::array<int32_t, kL2Out> l2{};
   Affine(weights_.l2_weight.data(), weights_.l2_bias.data(), a1.data(), l2.data(), kL2In, kL2Out);
   alignas(kSimdAlignment) std::array<uint8_t, kL2Out> a2{};
-  for (int i = 0; i < kL2Out; ++i) a2[i] = Clamp8(l2[i]);
+  for (int i = 0; i < kL2Out; ++i) a2[i] = Clamp8(l2[i], kWeightScaleBits);
 
   int32_t out = 0;
   Affine(weights_.l3_weight.data(), weights_.l3_bias.data(), a2.data(), &out, kL3In, 1);

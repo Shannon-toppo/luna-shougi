@@ -158,6 +158,12 @@ def main(argv: list[str]) -> int:
                              "Needs no trained net and no torch, which is what makes this "
                              "runnable in CI on every push.")
     parser.add_argument("--seed", type=int, default=0, help="seed for --random-net")
+    parser.add_argument("--scale-generation", type=int,
+                        default=quantize.CURRENT_SCALE_GENERATION,
+                        help="which quantization scales --random-net should use. Both are "
+                             "worth checking: the engine still reads generation 0, and a "
+                             "shift it gets wrong there is a shift that silently rescores "
+                             "every network in docs/")
     parser.add_argument("--sfen", help="file of SFENs, one per line (luna-datagen --sfen-out)")
     parser.add_argument("--positions", type=int, default=2000, help="how many SFENs to check")
     parser.add_argument("--show", type=int, default=5, help="how many mismatches to print")
@@ -172,10 +178,14 @@ def main(argv: list[str]) -> int:
     if args.random_net:
         # Written out and read back rather than used in memory, so that the
         # file format is part of what gets checked.
-        quantize.write(quantize.random_net(args.seed), args.random_net)
+        quantize.write(
+            quantize.random_net(args.seed, scale_generation=args.scale_generation),
+            args.random_net,
+        )
         args.net = args.random_net
         print(f"checking an untrained network: {args.net}")
     net = quantize.read(args.net)
+    print(f"scale generation {net.scale_generation}, L1 weights at {net.l1_weight_scale}")
     engine = Engine(args.engine)
     mismatches = 0
     simd = "?"

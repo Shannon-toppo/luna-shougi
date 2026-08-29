@@ -23,7 +23,7 @@ import sys
 
 import torch
 
-from . import checkpoint, dataset, model as model_module, quantize
+from . import checkpoint, dataset, quantize
 
 
 def main(argv: list[str]) -> int:
@@ -34,16 +34,22 @@ def main(argv: list[str]) -> int:
                         help="the .bin files the run trained on, for the bias correction")
     parser.add_argument("--calibration-samples", type=int, default=4096,
                         help="how many positions to measure the correction on")
+    parser.add_argument("--scale-generation", type=int,
+                        default=quantize.CURRENT_SCALE_GENERATION,
+                        help="which quantization scales to write. 0 is what every checkpoint "
+                             "trained before L1 was split onto its own scale was clipped "
+                             "against; exporting one of those at the default clips its L1 "
+                             "weights, and the warning below is what says so")
     args = parser.parse_args(argv)
 
     state = checkpoint.load(args.checkpoint)
-    net = model_module.HalfKP()
-    net.load_state_dict(state["model"])
+    net = checkpoint.build_model(state)
     net.eval()
 
     with torch.no_grad():
-        quantized, clipped = quantize.quantize(net)
-    print(f"step {state.get('step', '?')} -> {args.output}")
+        quantized, clipped = quantize.quantize(net, args.scale_generation)
+    print(f"step {state.get('step', '?')} -> {args.output} "
+          f"(scale generation {args.scale_generation}, L1 at {quantized.l1_weight_scale})")
 
     if args.calibration:
         batch = dataset.sample_evenly(args.calibration, args.calibration_samples)

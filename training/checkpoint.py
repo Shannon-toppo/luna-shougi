@@ -64,6 +64,22 @@ def load(path: str | Path) -> dict:
     return torch.load(path, map_location="cpu", weights_only=False)
 
 
+def build_model(state: dict):
+    """The model the checkpoint was trained with, shaped from its own args.
+
+    The width is a run-time choice on this side and a compile-time one in the
+    engine, so anything that loads a checkpoint has to take the shape from the
+    checkpoint rather than from model.FT_DIM. Older checkpoints have no
+    ft_dim in their args and were all trained at the default.
+    """
+    from . import model as model_module
+
+    args = state.get("args") or {}
+    net = model_module.HalfKP(ft_dim=args.get("ft_dim", model_module.FT_DIM))
+    net.load_state_dict(state["model"])
+    return net
+
+
 def latest(run_dir: str | Path) -> Path | None:
     path = Path(run_dir) / LATEST
     return path if path.exists() else None

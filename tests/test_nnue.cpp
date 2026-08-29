@@ -271,6 +271,60 @@ TEST_CASE("a network survives a trip through the file format", "[nnue]") {
   REQUIRE(ReferenceEval(written, pos) == ReferenceEval(read, pos));
 }
 
+TEST_CASE("L1's scale comes from the file, not from the build", "[nnue]") {
+  // Doubling L1's weights and its bias and then shifting one more bit is the
+  // same arithmetic exactly: (2x) >> 7 == x >> 6 for every int32. So a
+  // generation-1 network built that way has to score identically to the
+  // generation-0 one it came from -- which it cannot if the engine is reading
+  // the shift off the build instead of off the header.
+  static_assert(nnue::kL1WeightScaleBits[1] == nnue::kL1WeightScaleBits[0] + 1,
+                "this test's doubling assumes generation 1 is exactly one bit finer");
+
+  nnue::Network coarse;
+  FillNetwork(coarse, 31337);
+  nnue::Weights& c = coarse.Parameters();
+  // Halved first, so that the doubled copy still fits in int8.
+  for (size_t i = 0; i < c.l1_weight.size(); ++i) c.l1_weight.data()[i] /= 2;
+
+  nnue::Network fine;
+  FillNetwork(fine, 31337);
+  nnue::Weights& f = fine.Parameters();
+  for (size_t i = 0; i < f.l1_weight.size(); ++i) {
+    f.l1_weight.data()[i] = static_cast<int8_t>(c.l1_weight.data()[i] * 2);
+  }
+  for (size_t i = 0; i < f.l1_bias.size(); ++i) f.l1_bias.data()[i] = c.l1_bias.data()[i] * 2;
+  f.scale_generation = 1;
+
+  const Position pos = PositionOf(kMiddlegameSfen);
+  REQUIRE(ReferenceEval(fine, pos) == ReferenceEval(coarse, pos));
+
+  // And the same numbers read as generation 0 must not agree, or the test
+  // above would pass on a network where the scale happened not to matter.
+  f.scale_generation = 0;
+  REQUIRE(ReferenceEval(fine, pos) != ReferenceEval(coarse, pos));
+  f.scale_generation = 1;
+
+  // The generation has to survive the file, since that is the only place it
+  // is recorded.
+  std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+  REQUIRE(fine.WriteTo(stream));
+  nnue::Network reread;
+  std::string error;
+  REQUIRE(reread.ReadFrom(stream, error));
+  REQUIRE(reread.Parameters().scale_generation == 1u);
+  REQUIRE(ReferenceEval(reread, pos) == ReferenceEval(coarse, pos));
+
+  // A generation this build does not know is a file from a newer engine, and
+  // reading it with the shift it does know would score every position wrong
+  // without failing.
+  std::string bytes = stream.str();
+  bytes[28] = static_cast<char>(nnue::kScaleGenerationNb);
+  std::stringstream newer(bytes, std::ios::in | std::ios::binary);
+  nnue::Network rejected;
+  REQUIRE_FALSE(rejected.ReadFrom(newer, error));
+  REQUIRE_FALSE(rejected.Loaded());
+}
+
 TEST_CASE("a file that is not a network is refused rather than believed", "[nnue]") {
   nnue::Network network;
   std::string error;

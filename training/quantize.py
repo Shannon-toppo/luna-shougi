@@ -30,6 +30,14 @@ ACTIVATION_SCALE = 127
 WEIGHT_SCALE_BITS = 6
 WEIGHT_SCALE = 1 << WEIGHT_SCALE_BITS
 HIDDEN_BIAS_SCALE = ACTIVATION_SCALE * WEIGHT_SCALE  # 8128
+
+# L1's weight scale, by scale generation; L2 and the output layer are the same
+# in every generation. Generation 0 is every network built before L1 was split
+# off, and the reasoning for the split is in src/nnue/network.hpp. Old files
+# carry a zero here because the field used to be reserved, so they keep
+# working and their recorded results stay reproducible.
+L1_WEIGHT_SCALE_BITS = (6, 7)
+CURRENT_SCALE_GENERATION = 1
 # Engine points per unit of the network's output. This is a trainer-side
 # choice and the engine never sees it: it is folded into the output layer
 # below, so a network built at any value scores correctly through the same
@@ -52,10 +60,23 @@ class QuantizedNet:
     l2_bias: np.ndarray  # (l2_out,) int32
     l3_weight: np.ndarray  # (l2_out,) int8
     l3_bias: np.ndarray  # (1,) int32
+    scale_generation: int = 0  # which scale l1_weight and l1_bias are on
 
     @property
     def ft_dim(self) -> int:
         return self.ft_bias.shape[0]
+
+    @property
+    def l1_scale_bits(self) -> int:
+        return L1_WEIGHT_SCALE_BITS[self.scale_generation]
+
+    @property
+    def l1_weight_scale(self) -> int:
+        return 1 << self.l1_scale_bits
+
+    @property
+    def l1_bias_scale(self) -> int:
+        return ACTIVATION_SCALE * self.l1_weight_scale
 
 
 def _round_clip(values, scale, dtype):
@@ -66,15 +87,24 @@ def _round_clip(values, scale, dtype):
     return np.clip(scaled, info.min, info.max).astype(dtype), clipped
 
 
-def quantize(model) -> tuple[QuantizedNet, dict]:
+def quantize(model, scale_generation: int = CURRENT_SCALE_GENERATION) -> tuple[QuantizedNet, dict]:
     """The model as integers, plus a count of weights that had to be clipped.
 
     A non-zero count is not fatal but is worth knowing about: it means the
     float network was using a weight the engine cannot represent, and the two
     have started to disagree. model.clip_weights during training is what keeps
     it at zero.
+
+    It is also the whole safety net for `scale_generation`. A checkpoint
+    trained when L1 could reach 127/64 does not fit generation 1, and what
+    says so is l1_weight coming back non-zero here -- not a silent choice made
+    on its behalf. Export such a checkpoint at generation 0, which is the
+    scale it was actually trained against.
     """
     import torch
+
+    l1_weight_scale = 1 << L1_WEIGHT_SCALE_BITS[scale_generation]
+    l1_bias_scale = ACTIVATION_SCALE * l1_weight_scale
 
     with torch.no_grad():
         state = {name: value.detach().cpu().numpy() for name, value in model.state_dict().items()}
@@ -82,8 +112,8 @@ def quantize(model) -> tuple[QuantizedNet, dict]:
     report = {}
     ft_weight, report["ft_weight"] = _round_clip(state["ft.weight"], ACTIVATION_SCALE, np.int16)
     ft_bias, report["ft_bias"] = _round_clip(state["ft_bias"], ACTIVATION_SCALE, np.int16)
-    l1_weight, report["l1_weight"] = _round_clip(state["l1.weight"], WEIGHT_SCALE, np.int8)
-    l1_bias, report["l1_bias"] = _round_clip(state["l1.bias"], HIDDEN_BIAS_SCALE, np.int32)
+    l1_weight, report["l1_weight"] = _round_clip(state["l1.weight"], l1_weight_scale, np.int8)
+    l1_bias, report["l1_bias"] = _round_clip(state["l1.bias"], l1_bias_scale, np.int32)
     l2_weight, report["l2_weight"] = _round_clip(state["l2.weight"], WEIGHT_SCALE, np.int8)
     l2_bias, report["l2_bias"] = _round_clip(state["l2.bias"], HIDDEN_BIAS_SCALE, np.int32)
     l3_weight, report["l3_weight"] = _round_clip(
@@ -101,6 +131,7 @@ def quantize(model) -> tuple[QuantizedNet, dict]:
             l2_bias=l2_bias,
             l3_weight=l3_weight,
             l3_bias=l3_bias,
+            scale_generation=scale_generation,
         ),
         report,
     )
@@ -115,7 +146,7 @@ def write(net: QuantizedNet, path: str) -> None:
         net.ft_dim,
         net.l1_weight.shape[0],
         net.l2_weight.shape[0],
-        0,
+        net.scale_generation,
     )
     assert len(header) == HEADER_BYTES
     with open(path, "wb") as handle:
@@ -137,13 +168,20 @@ def read(path: str) -> QuantizedNet:
         header = handle.read(HEADER_BYTES)
         if len(header) != HEADER_BYTES:
             raise ValueError(f"{path}: too short to hold a header")
-        magic, version, feature_dims, ft_dim, l1_out, l2_out, _ = struct.unpack("<8sIIIIII", header)
+        magic, version, feature_dims, ft_dim, l1_out, l2_out, generation = struct.unpack(
+            "<8sIIIIII", header
+        )
         if magic != FILE_MAGIC:
             raise ValueError(f"{path}: not a luna nnue file")
         if version != FILE_VERSION:
             raise ValueError(f"{path}: version {version}, expected {FILE_VERSION}")
         if feature_dims != features.FEATURE_DIMS:
             raise ValueError(f"{path}: {feature_dims} features, expected {features.FEATURE_DIMS}")
+        if generation >= len(L1_WEIGHT_SCALE_BITS):
+            raise ValueError(
+                f"{path}: unknown quantization scale generation {generation}; "
+                f"this trainer knows 0..{len(L1_WEIGHT_SCALE_BITS) - 1}"
+            )
 
         def take(count, dtype):
             raw = handle.read(count * np.dtype(dtype).itemsize)
@@ -169,10 +207,17 @@ def read(path: str) -> QuantizedNet:
         l2_bias=l2_bias,
         l3_weight=l3_weight,
         l3_bias=l3_bias,
+        scale_generation=generation,
     )
 
 
-def random_net(seed: int = 0, ft_dim: int = 256, l1_out: int = 32, l2_out: int = 32):
+def random_net(
+    seed: int = 0,
+    ft_dim: int = 256,
+    l1_out: int = 32,
+    l2_out: int = 32,
+    scale_generation: int = CURRENT_SCALE_GENERATION,
+):
     """An untrained network, for checking that the two sides agree.
 
     Nothing here has to have learned anything: the point of the cross-check is
@@ -191,6 +236,7 @@ def random_net(seed: int = 0, ft_dim: int = 256, l1_out: int = 32, l2_out: int =
         l2_bias=rng.integers(-4000, 4001, size=l2_out, dtype=np.int32),
         l3_weight=rng.integers(-127, 128, size=l2_out).astype(np.int8),
         l3_bias=rng.integers(-9600, 9601, size=1, dtype=np.int32),
+        scale_generation=scale_generation,
     )
 
 
@@ -201,10 +247,10 @@ def _clipped_relu_16(values: np.ndarray) -> np.ndarray:
     return np.clip(values, 0, ACTIVATION_SCALE).astype(np.uint8)
 
 
-def _clipped_relu_32(values: np.ndarray) -> np.ndarray:
+def _clipped_relu_32(values: np.ndarray, scale_bits: int) -> np.ndarray:
     # An arithmetic right shift, which is what C++ does to a negative int32
     # since C++20 and what numpy does to a signed integer array.
-    return np.clip(values >> WEIGHT_SCALE_BITS, 0, ACTIVATION_SCALE).astype(np.uint8)
+    return np.clip(values >> scale_bits, 0, ACTIVATION_SCALE).astype(np.uint8)
 
 
 def _trunc_div(value: np.ndarray, divisor: int) -> np.ndarray:
@@ -226,7 +272,8 @@ def forward(net: QuantizedNet, black: np.ndarray, white: np.ndarray, stm: np.nda
     """The integer pipeline stage by stage: (L1 sum, L2 sum, output sum).
 
     The two hidden ones are the int32 sums before the shift and the clamp, at
-    scale 8128; the last is before the division by kFvScale, at scale 9600.
+    net.l1_bias_scale and 8128; the last is before the division by kFvScale,
+    at scale 9600.
 
     Split out of evaluate() rather than written twice because correct_biases
     needs to see the numbers on the way through, and a second copy of this
@@ -245,9 +292,9 @@ def forward(net: QuantizedNet, black: np.ndarray, white: np.ndarray, stm: np.nda
 
     x = np.concatenate([_clipped_relu_16(own), _clipped_relu_16(opponent)], axis=1)
     l1 = x.astype(np.int32) @ net.l1_weight.astype(np.int32).T + net.l1_bias.astype(np.int32)
-    x = _clipped_relu_32(l1)
+    x = _clipped_relu_32(l1, net.l1_scale_bits)
     l2 = x.astype(np.int32) @ net.l2_weight.astype(np.int32).T + net.l2_bias.astype(np.int32)
-    x = _clipped_relu_32(l2)
+    x = _clipped_relu_32(l2, WEIGHT_SCALE_BITS)
     out = x.astype(np.int32) @ net.l3_weight.astype(np.int32) + net.l3_bias.astype(np.int32)
     return l1, l2, out
 
@@ -330,7 +377,7 @@ def correct_biases(net: QuantizedNet, model, black, white, stm) -> dict:
     """
     info = np.iinfo(np.int32)
     float_stages = _float_stages(model, black, white, stm)
-    scales = (HIDDEN_BIAS_SCALE, HIDDEN_BIAS_SCALE, OUTPUT_BIAS_SCALE)
+    scales = (net.l1_bias_scale, HIDDEN_BIAS_SCALE, OUTPUT_BIAS_SCALE)
     names = ("l1_bias", "l2_bias", "l3_bias")
 
     def mean_output_error() -> float:

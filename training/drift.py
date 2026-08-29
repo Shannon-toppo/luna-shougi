@@ -89,8 +89,7 @@ def main(argv: list[str]) -> int:
     black, white, stm, sfens = positions(sfens)
 
     state = checkpoint.load(args.checkpoint)
-    net = model_module.HalfKP()
-    net.load_state_dict(state["model"])
+    net = checkpoint.build_model(state)
     net.eval()
     with torch.no_grad():
         predicted = net(
