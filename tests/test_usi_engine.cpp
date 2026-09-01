@@ -42,7 +42,47 @@ TEST_CASE("isready responds with readyok", "[usi]") {
   luna::UsiEngine engine;
   const auto response = engine.HandleCommand("isready");
 
-  REQUIRE(response == std::vector<std::string>{"readyok"});
+  // readyok has to be last, because that is the word the GUI waits for. What
+  // comes before it is the EvalFile default being applied, which is where the
+  // one slow thing at startup belongs; info lines are legal anywhere.
+  REQUIRE(response.back() == "readyok");
+  for (size_t i = 0; i + 1 < response.size(); ++i) {
+    REQUIRE(response[i].rfind("info string ", 0) == 0);
+  }
+
+  // A second one does no work and says nothing: reloading the network on
+  // every liveness check would be 64MB of nothing.
+  REQUIRE(engine.HandleCommand("isready") == std::vector<std::string>{"readyok"});
+}
+
+TEST_CASE("the EvalFile default is applied at isready, and only until told otherwise", "[usi]") {
+  // No executable path and no eval.nnue in the working directory, so the
+  // default finds nothing. That it says so is the point: the engine is about
+  // to play with the weaker evaluation and must not do it quietly.
+  {
+    luna::UsiEngine engine;
+    const auto response = engine.HandleCommand("isready");
+    REQUIRE(Contains(response, "info string eval hand-written"));
+    REQUIRE(Contains(response, "info string no eval.nnue"));
+  }
+
+  // An empty EvalFile is how a GUI says hand-written, and it has to survive
+  // isready. Before this default existed, empty was simply the default and
+  // nothing could overwrite it; now something could, so it is worth a test.
+  {
+    luna::UsiEngine engine;
+    const auto set = engine.HandleCommand("setoption name EvalFile value ");
+    REQUIRE(set == std::vector<std::string>{"info string eval hand-written"});
+    REQUIRE(engine.HandleCommand("isready") == std::vector<std::string>{"readyok"});
+  }
+
+  // And the advertised default is the filename the search looks for, not a
+  // blank. A GUI that echoes defaults back has to send something that works.
+  {
+    luna::UsiEngine engine;
+    REQUIRE(Contains(engine.HandleCommand("usi"),
+                     "option name EvalFile type string default eval.nnue"));
+  }
 }
 
 TEST_CASE("quit sets the quit flag and produces no output", "[usi]") {

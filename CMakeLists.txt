@@ -22,6 +22,15 @@ option(LUNA_BUILD_TESTS "Build unit tests" ON)
 # are always compiled in and the engine will simply evaluate more slowly.
 option(LUNA_ENABLE_AVX2 "Compile with AVX2 on x86-64" ON)
 
+# The width of the feature transformer, which src/nnue/network.hpp defaults to
+# 256. A network file records its own shape and the engine refuses one that
+# does not match the binary, so comparing two widths means building two
+# binaries and giving both to luna-match:
+#
+#   cmake -B build-wide -DLUNA_TRANSFORMED_DIM=512
+set(LUNA_TRANSFORMED_DIM "" CACHE STRING
+    "Feature transformer width; empty keeps network.hpp's default of 256")
+
 # The search itself is multi-threaded (Lazy SMP), so the engine library needs
 # a thread implementation, not only the tools that drive several engines.
 find_package(Threads REQUIRED)
@@ -47,6 +56,9 @@ add_library(luna_engine
   src/engine/usi_engine.cpp
 )
 target_include_directories(luna_engine PUBLIC src)
+if(LUNA_TRANSFORMED_DIM)
+  target_compile_definitions(luna_engine PUBLIC LUNA_TRANSFORMED_DIM=${LUNA_TRANSFORMED_DIM})
+endif()
 target_compile_features(luna_engine PUBLIC cxx_std_20)
 target_link_libraries(luna_engine PUBLIC Threads::Threads)
 

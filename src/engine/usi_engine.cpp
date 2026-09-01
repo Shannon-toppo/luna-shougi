@@ -24,10 +24,39 @@ constexpr const char* kEngineAuthor = "Toppo";
 // engine does not do it yet and a GUI must not be told otherwise.
 constexpr const char* kHashOption = "USI_Hash";
 
-// Path to the NNUE network. Empty, the default, means the hand-written
-// evaluation. A GUI sets it through its engine settings dialog like any other
-// string option.
+// Path to the NNUE network. Empty means the hand-written evaluation; a GUI
+// sets it through its engine settings dialog like any other string option.
+//
+// The advertised default is a bare filename rather than nothing, and that is
+// the whole mechanism behind loading a network without being told to. A
+// relative path is resolved against the engine's own directory before the
+// working directory, so an engine and its `eval.nnue` sitting in one folder
+// work whatever directory the GUI happens to launch from.
+//
+// Advertising it beats treating an empty value as "look for one anyway". Some
+// GUIs send every option back at startup: with an empty default they would
+// send empty and the network would never load, and with this default they
+// send `eval.nnue` and it does. It also leaves empty meaning exactly what it
+// has always meant -- the hand-written evaluation -- so a GUI that clears the
+// field still gets what clearing it looks like.
 constexpr const char* kEvalFileOption = "EvalFile";
+constexpr const char* kEvalFileDefault = "eval.nnue";
+
+// The directory part of a path, without the separator, or empty if there is
+// none. Both separators, because a Windows GUI may hand over either.
+std::string DirectoryOf(const std::string& path) {
+  const size_t cut = path.find_last_of("/\\");
+  return cut == std::string::npos ? std::string() : path.substr(0, cut);
+}
+
+// Whether a path already says where it starts from, and so must not be
+// resolved against anything. "C:\..." and "C:/..." as well as the two
+// separators, because this reads paths a Windows GUI wrote.
+bool IsAbsolutePath(const std::string& path) {
+  if (path.empty()) return false;
+  if (path[0] == '/' || path[0] == '\\') return true;
+  return path.size() >= 2 && path[1] == ':';
+}
 
 // How many threads the search runs on, the one it is started from included.
 constexpr const char* kThreadsOption = "Threads";
@@ -40,7 +69,8 @@ constexpr const char* kEvalDumpEveryOption = "EvalDumpEvery";
 constexpr int64_t kMaxEvalDumpEvery = 100'000'000;
 }  // namespace
 
-UsiEngine::UsiEngine() {
+UsiEngine::UsiEngine(std::string executable_path)
+    : executable_dir_(DirectoryOf(executable_path)) {
   // Installed once. Where the lines end up depends on whether Run has given
   // us somewhere to write, which is decided in Emit rather than here.
   search_.SetInfoSink([this](const std::string& info) { Emit(info); });
@@ -205,17 +235,10 @@ std::vector<std::string> UsiEngine::HandleSetOption(const std::string& line) {
   }
 
   if (name == kEvalFileOption) {
-    if (value.empty()) {
-      nnue::Unload();
-      return {"info string eval hand-written"};
-    }
-    std::string error;
-    if (!nnue::Load(value, error)) {
-      // Falling back rather than refusing to start: a wrong path in a GUI
-      // config should cost strength, not a game.
-      return {"info string EvalFile failed: " + error, "info string eval hand-written"};
-    }
-    return {"info string eval nnue " + value + " (" + nnue::SimdName() + ")"};
+    // Even an empty value counts as the GUI having chosen, so that "isready"
+    // does not then load a network over the top of a deliberate blank.
+    eval_file_chosen_ = true;
+    return LoadEvalFile(value, false);
   }
 
   if (name == kEvalDumpEveryOption) {
@@ -255,6 +278,44 @@ std::vector<std::string> UsiEngine::HandleSetOption(const std::string& line) {
     return response;
   }
   return {};
+}
+
+std::vector<std::string> UsiEngine::LoadEvalFile(const std::string& value, bool from_default) {
+  if (value.empty()) {
+    nnue::Unload();
+    return {"info string eval hand-written"};
+  }
+
+  // The engine's own directory first, so that a folder holding the engine and
+  // its network works from any working directory, and the value as given
+  // second, which is what an absolute path from a GUI needs.
+  std::vector<std::string> candidates;
+  if (!executable_dir_.empty() && !IsAbsolutePath(value)) {
+    candidates.push_back(executable_dir_ + "/" + value);
+  }
+  candidates.push_back(value);
+
+  std::string error;
+  for (const std::string& path : candidates) {
+    std::string one;
+    if (nnue::Load(path, one)) {
+      return {"info string eval nnue " + path + " (" + nnue::SimdName() + ")"};
+    }
+    if (error.empty()) error = one;
+  }
+
+  if (from_default) {
+    // Nobody asked for this network, so its absence is ordinary and must not
+    // read like a fault. Said out loud all the same: the engine is about to
+    // play with the weaker evaluation, and silence there is the failure this
+    // default exists to prevent.
+    return {"info string no " + std::string(kEvalFileDefault) +
+            " beside the engine; set EvalFile to use a network",
+            "info string eval hand-written"};
+  }
+  // Falling back rather than refusing to start: a wrong path in a GUI
+  // config should cost strength, not a game.
+  return {"info string EvalFile failed: " + error, "info string eval hand-written"};
 }
 
 std::vector<std::string> UsiEngine::HandleEval() const {
@@ -346,7 +407,7 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
         std::string("id author ") + kEngineAuthor,
         hash_option.str(),
         threads_option.str(),
-        std::string("option name ") + kEvalFileOption + " type string default ",
+        std::string("option name ") + kEvalFileOption + " type string default " + kEvalFileDefault,
         std::string("option name ") + kEvalDumpOption + " type string default ",
         dump_every_option.str(),
         "usiok",
@@ -355,6 +416,18 @@ std::vector<std::string> UsiEngine::HandleCommand(const std::string& line) {
   if (cmd == "isready") {
     // Answered straight away, search running or not. A GUI uses this as a
     // liveness check and will give up on an engine that goes quiet.
+    //
+    // The one thing done first is the EvalFile default, and it is done here
+    // rather than in the constructor because this is where USI puts the work
+    // that takes a moment, and because a GUI that does send the option has to
+    // get its word in before the default is applied. Once only: reloading a
+    // 64MB network on every readiness check would be a lot of nothing.
+    if (!eval_file_chosen_) {
+      eval_file_chosen_ = true;
+      std::vector<std::string> response = LoadEvalFile(kEvalFileDefault, true);
+      response.push_back("readyok");
+      return response;
+    }
     return {"readyok"};
   }
   if (cmd == "usinewgame") {

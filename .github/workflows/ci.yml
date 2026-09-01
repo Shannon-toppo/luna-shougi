@@ -49,6 +49,14 @@ jobs:
       - name: Python and C++ agree on the evaluation
         run: python -m training.verify --engine build/Release/luna-shougi.exe --random-net ci.nnue --sfen ci.sfen
 
+      # L1's scale is read off the file, so there are two arithmetics to keep
+      # in step and the default only exercises one. Generation 0 is every
+      # network built before the split, including the ones whose match results
+      # are written down in docs/: getting its shift wrong would rescore all of
+      # them without failing anything.
+      - name: The same, for networks on the older quantization scale
+        run: python -m training.verify --engine build/Release/luna-shougi.exe --random-net ci-g0.nnue --sfen ci.sfen --scale-generation 0
+
   macos-arm64:
     runs-on: macos-14
     steps:
@@ -78,3 +86,6 @@ jobs:
       # the engine is developed on.
       - name: Python and C++ agree on the evaluation
         run: python -m training.verify --engine build/luna-shougi --random-net ci.nnue --sfen ci.sfen
+
+      - name: The same, for networks on the older quantization scale
+        run: python -m training.verify --engine build/luna-shougi --random-net ci-g0.nnue --sfen ci.sfen --scale-generation 0
