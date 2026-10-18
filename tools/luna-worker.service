@@ -1,0 +1,37 @@
+# A datagen_cluster.py worker, run inside an unprivileged LXC on a Proxmox node.
+#
+# The share is mounted on the Proxmox host and bound into the container
+# (mp0: /mnt/luna,mp=/srv/luna), because an unprivileged container cannot
+# mount NFS itself. Per-node values go in /etc/default/luna-worker:
+#
+#   LUNA_DIR=/srv/luna/gen11
+#   LUNA_NAME=i3-8100T
+#   LUNA_CONCURRENCY=4
+#
+# No Nice= here: inside a container it only reorders processes within the
+# container's own cgroup. How much CPU the worker gets next to the host and
+# the VMs is set by the container's cpuunits on the Proxmox side.
+#
+# Restart=on-failure rather than always: a worker that finds every chunk done
+# exits with 0, and restarting it would only print that again every minute.
+# A crash, a refused manifest and a run of failed chunks all exit non-zero and
+# are retried, so a share that comes back or a fixed binary is picked up.
+
+[Unit]
+Description=luna-datagen cluster worker
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/srv/luna
+
+[Service]
+EnvironmentFile=/etc/default/luna-worker
+ExecStart=/usr/bin/python3 /opt/luna/datagen_cluster.py work ${LUNA_DIR} --name ${LUNA_NAME} --concurrency ${LUNA_CONCURRENCY}
+Restart=on-failure
+RestartSec=60
+# SIGTERM reaches luna-datagen as well, which stops cleanly; the worker throws
+# the chunk away and gives it back. A minute is plenty for that.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target
